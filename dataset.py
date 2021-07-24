@@ -15,9 +15,9 @@ DBStruct = namedtuple('dbStruct', ['whichSet', 'dataset', 'dbImage', 'utmDb', 'q
 
 
 class Tokyo247(Dataset):
-    def __init__(self, struct_path=None, image_path=None, model_type='train', only_db=False):
-        self.struct_dir = os.path.join(struct_path, 'Tokyo247')
-        self.image_path = os.path.join(image_path, 'Tokyo247')
+    def __init__(self, data_path=None, model_type='train', only_db=False):
+        self.struct_dir = os.path.join(data_path, 'Tokyo247')
+        self.image_path = os.path.join(data_path, 'Tokyo247/data')
 
         if not os.path.exists(self.struct_dir):
             raise FileNotFoundError('root_dir is hardcoded, please adjust to point to Tokyo247 dataset')

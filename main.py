@@ -75,11 +75,9 @@ if __name__ == '__main__':
 
     whole_dataset = None
     if cfg.DATASET_TYPE == cfg.Dataset.Tokyo247:
-        whole_dataset = Tokyo247('./Datasets', '/home/taowenyin/MyCode/Dataset/NetVLAD/',
-                                 model_type=opt.mode, only_db=(opt.mode == 'cluster'))
+        whole_dataset = Tokyo247('./Datasets', model_type=opt.mode, only_db=(opt.mode == 'cluster'))
     elif cfg.DATASET_TYPE == cfg.Dataset.Pitts250k:
-        whole_dataset = Pitts250k('./Datasets', '/home/taowenyin/MyCode/Dataset',
-                                  model_type=opt.mode, only_db=(opt.mode == 'cluster'))
+        whole_dataset = Pitts250k('./Datasets', model_type=opt.mode, only_db=(opt.mode == 'cluster'))
 
     whole_data_loader = DataLoader(whole_dataset, batch_size=cfg.BATCH_SIZE, shuffle=False,
                                    pin_memory=True, num_workers=4, drop_last=True)
