@@ -136,7 +136,8 @@ def _get_triplet_mask(labels):
     label_equal = torch.eq(torch.unsqueeze(labels, 0), torch.unsqueeze(labels, 1))
     i_equal_j = torch.unsqueeze(label_equal, 2)
     i_equal_k = torch.unsqueeze(label_equal, 1)
-    valid_labels = i_equal_j * (i_equal_k ^ 1)
+    # valid_labels = i_equal_j * (i_equal_k ^ 1) # taowenyin
+    valid_labels = (i_equal_j * (i_equal_k ^ True)) + 0
 
     mask = distinct_indices * valid_labels   # Combine the two masks
 
