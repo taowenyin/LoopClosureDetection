@@ -17,3 +17,5 @@
 [SIFT与CNN的碰撞](https://zhuanlan.zhihu.com/p/38311447)
 
 [Place Recognition](https://paperswithcode.com/paper/netvlad-cnn-architecture-for-weakly#code)
+
+[FAS100K](https://github.com/oravus/CoarseHash)
