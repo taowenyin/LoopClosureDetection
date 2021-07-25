@@ -324,6 +324,10 @@ class Pitts250k(Dataset):
     def __init__(self, struct_path=None, image_path=None, model_type='train', only_db=False):
         print('xxx')
 
+class Pitts250kQuery(Dataset):
+    def __init__(self, data_path=None, model_type='train', nNegSample=1000, nNeg=10, margin=0.1):
+        print('xxx')
+
 
 if __name__ == '__main__':
     a = [np.empty((0,)) for _ in range(10)]

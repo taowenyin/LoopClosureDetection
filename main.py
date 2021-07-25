@@ -7,9 +7,10 @@ import numpy as np
 import torch.nn as nn
 import train_eval
 import cluster
+import os
 
 from Models.NetVLAD import NetVLAD, EmbedNet
-from dataset import Pitts250k, Tokyo247
+from dataset import Pitts250k, Tokyo247, Tokyo247Query, Pitts250kQuery
 from Utils.Flatten import Flatten
 from Utils.L2Normalize import L2Normalize
 from torchvision.models import vgg16, vgg16_bn, alexnet
@@ -27,6 +28,12 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+    # 设置固定种子
+    random.seed(opt.seed)
+    np.random.seed(opt.seed)
+    torch.manual_seed(opt.seed)
+    torch.cuda.manual_seed(opt.seed)
 
     base_model = None
     base_model_name = None
@@ -73,34 +80,50 @@ if __name__ == '__main__':
     # 创建模型对象
     net = EmbedNet(base_model, pooling_net).to(device)
 
+    optimizer = optim.Adam(net.parameters(), lr=cfg.BASE_LR)
+    scheduler = lr_scheduler.StepLR(optimizer, step_size=cfg.LR_STEP, gamma=cfg.LR_GAMMA)
+    criterion = nn.TripletMarginLoss(margin=cfg.TRIPLET_MARGIN, p=2, reduction='sum').to(device)
+
+    dataset_name = None
+    if opt.mode != 'cluster':
+        if cfg.DATASET_TYPE == cfg.Dataset.Tokyo247:
+            centroids_path = './Datasets/Tokyo247'
+            dataset_name = 'Tokyo247'
+        elif cfg.DATASET_TYPE == cfg.Dataset.Pitts250k:
+            centroids_path = './Datasets/Pitts250k'
+            dataset_name = 'Pitts250k'
+        else:
+            centroids_path = './Datasets/Tokyo247'
+            dataset_name = 'Tokyo247'
+
+        centroids_file = os.path.join(centroids_path, 'centroids', base_model_name + '_' + dataset_name +
+                                      '_' + str(opt.num_clusters) + '_desc_cen.hdf5')
+
+        if not os.path.exists(centroids_file):
+            raise Exception('No centroids file!!!!!!!!!!!!!!1')
+
+    # 载入数据集
     whole_dataset = None
     if cfg.DATASET_TYPE == cfg.Dataset.Tokyo247:
         whole_dataset = Tokyo247('./Datasets', model_type=opt.mode, only_db=(opt.mode == 'cluster'))
     elif cfg.DATASET_TYPE == cfg.Dataset.Pitts250k:
         whole_dataset = Pitts250k('./Datasets', model_type=opt.mode, only_db=(opt.mode == 'cluster'))
 
-    whole_data_loader = DataLoader(whole_dataset, batch_size=cfg.BATCH_SIZE, shuffle=False,
-                                   pin_memory=True, num_workers=4, drop_last=True)
-
-    print('====> {} data set: {}'.format(opt.mode, len(whole_data_loader)))
-
-    # 设置固定种子
-    random.seed(opt.seed)
-    np.random.seed(opt.seed)
-    torch.manual_seed(opt.seed)
-    torch.cuda.manual_seed(opt.seed)
-
-    optimizer = optim.Adam(net.parameters(), lr=cfg.BASE_LR)
-    scheduler = lr_scheduler.StepLR(optimizer, step_size=cfg.LR_STEP, gamma=cfg.LR_GAMMA)
-    criterion = nn.TripletMarginLoss(margin=cfg.TRIPLET_MARGIN, p=2, reduction='sum').to(device)
+    print('====> {} data set: {}'.format(opt.mode, len(whole_dataset)))
 
     if opt.mode == 'train':
+        whole_dataset_train = Tokyo247Query('./Datasets', model_type=opt.mode)
+        whole_data_loader = DataLoader(whole_dataset, batch_size=cfg.BATCH_SIZE, shuffle=False,
+                                       pin_memory=True, num_workers=4, drop_last=True)
+
         for epoch in range(cfg.EPOCH_NUMBER):
             # 获得损失函数
             loss = train_eval.train_one_epoch(net, whole_data_loader, optimizer, criterion, epoch, device)
 
             # 更新学习率
             scheduler.step()
+    if opt.mode == 'test':
+        print('xx')
     elif opt.mode == 'cluster':
         # 计算聚类
         cluster.calculate_clusters(whole_dataset, net, conv_output_channels, base_model_name, opt, device)
