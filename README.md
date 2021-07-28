@@ -19,3 +19,19 @@
 [Place Recognition](https://paperswithcode.com/paper/netvlad-cnn-architecture-for-weakly#code)
 
 [FAS100K](https://github.com/oravus/CoarseHash)
+
+[FlyNet](https://github.com/mchancan/flynet)
+
+[Nordland Downsampled Dataset 224x224](https://drive.google.com/drive/folders/1CzzLo-t9iLYOszcHAnB3KaWwkP5jyJn1?usp=sharing)
+
+[Nordland Dataset](https://drive.google.com/drive/folders/1SmrDOeUgBnJbpW187VFWxGjS7XdbZK5t)
+
+[Nordlandsbanen](https://nrkbeta.no/2013/01/15/nordlandsbanen-minute-by-minute-season-by-season/)
+
+[Single-View Place Recognition under Seasonal Changes](http://webdiis.unizar.es/~jmfacil/pr-nordland/#download-dataset)
+
+[Patch-NetVLAD](https://github.com/QVPR/Patch-NetVLAD)
+
+[Mapillary Street-level Sequences](https://github.com/mapillary/mapillary_sls)
+
+[Patch-NetVLAD论文阅读](https://vincentqin.tech/posts/patch-netvlad/)
