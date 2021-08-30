@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 import argparse
 import random
 import cfg
@@ -9,14 +8,14 @@ import train_eval
 import cluster
 import os
 
-from Models.NetVLAD import NetVLAD, EmbedNet
-from dataset import Pitts250k, Tokyo247, Tokyo247Query, Pitts250kQuery
+from loopclosure.models.NetVLAD import NetVLAD, EmbedNet
+from dataset import Pitts250k, Tokyo247, Tokyo247Query
 from Utils.Flatten import Flatten
 from Utils.L2Normalize import L2Normalize
-from torchvision.models import vgg16, vgg16_bn, alexnet
+from torchvision.models import vgg16, alexnet
 from torch import optim
 from torch.optim import lr_scheduler
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader
 
 parser = argparse.ArgumentParser(description='pytorch-NetVlad')
 parser.add_argument('--seed', type=int, default=123, help='Random seed to use.')
