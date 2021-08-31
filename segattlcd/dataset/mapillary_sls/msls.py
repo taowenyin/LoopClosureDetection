@@ -1,17 +1,20 @@
 #  Copyright (c) Facebook, Inc. and its affiliates.
 
 import numpy as np
-from PIL import Image
-from torch.utils.data import Dataset
+import torch.utils.data as data
 import pandas as pd
-from os.path import join
-from sklearn.neighbors import NearestNeighbors
 import math
 import torch
 import random
 import sys
+import itertools
+
+from os.path import join
+from sklearn.neighbors import NearestNeighbors
+from PIL import Image
+from torch.utils.data import Dataset
 from tqdm import tqdm
-from loopclosure.dataset.mapillary_sls.generic_dataset import ImagesFromList
+from segattlcd.dataset.mapillary_sls.generic_dataset import ImagesFromList
 
 default_cities = {
     'train': ["trondheim", "london", "boston", "melbourne", "amsterdam", "helsinki",
@@ -298,6 +301,34 @@ class MSLS(Dataset):
                 keys.append(key)
                 idxs.append(idx)
         return keys, np.asarray(idxs)
+
+    def collate_fn(_batch):
+        """Creates mini-batch tensors from the list of tuples (query, positive, negatives).
+
+        Args:
+            batch: list of tuple (query, positive, negatives).
+                - query: torch tensor of shape (3, h, w).
+                - positive: torch tensor of shape (3, h, w).
+                - negative: torch tensor of shape (n, 3, h, w).
+        Returns:
+            query: torch tensor of shape (batch_size, 3, h, w).
+            positive: torch tensor of shape (batch_size, 3, h, w).
+            negatives: torch tensor of shape (batch_size, n, 3, h, w).
+        """
+
+        batch = list(filter(lambda x: x is not None, _batch))
+        if len(batch) == 0:
+            return None, None, None, None, None
+
+        query, positive, negatives, indices = zip(*batch)
+
+        query = data.dataloader.default_collate(query)
+        positive = data.dataloader.default_collate(positive)
+        negCounts = data.dataloader.default_collate([x.shape[0] for x in negatives])
+        negatives = torch.cat(negatives, 0)
+        indices = list(itertools.chain(*indices))
+
+        return query, positive, negatives, negCounts, indices
 
     def __len__(self):
         return len(self.triplets)

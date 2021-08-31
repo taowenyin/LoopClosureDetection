@@ -5,9 +5,9 @@ import random
 import numpy as np
 
 from os.path import join
-from loopclosure.tools import LOOP_CLOSURE_ROOT_DIR
-from loopclosure.tools.datasets import input_transform
-from loopclosure.dataset.mapillary_sls.msls import MSLS
+from segattlcd.tools import LOOP_CLOSURE_ROOT_DIR
+from segattlcd.tools.datasets import input_transform
+from segattlcd.dataset.mapillary_sls.msls import MSLS
 from tqdm.auto import trange
 
 if __name__ == '__main__':
