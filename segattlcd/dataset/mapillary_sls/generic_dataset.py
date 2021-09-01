@@ -3,12 +3,6 @@
 import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
-import pandas as pd
-from os.path import join
-from sklearn.neighbors import NearestNeighbors
-import math
-import torch
-import random
 
 
 class ImagesFromList(Dataset):

@@ -12,6 +12,7 @@ from segattlcd.tools import LOOP_CLOSURE_ROOT_DIR
 from segattlcd.tools.datasets import input_transform
 from segattlcd.dataset.mapillary_sls.msls import MSLS
 from segattlcd.train.train_epoch import train_epoch
+from segattlcd.models.models_generic import get_model, get_backend
 from tqdm.auto import trange
 
 if __name__ == '__main__':
@@ -48,13 +49,15 @@ if __name__ == '__main__':
     if cuda:
         torch.cuda.manual_seed(int(config['train']['seed']))
 
-    if opt.continuing:
-        print('continuing')
-    else:
-        resize = (int(config['train']['image_resize_w']), int(config['train']['image_resize_h']))
+    # 缩放图片后的大小
+    resize = (int(config['train']['image_resize_w']), int(config['train']['image_resize_h']))
 
     optimizer = None
     scheduler = None
+
+    print('===> Building model')
+    encoder_dim, encoder = get_backend()
+    model = get_model(encoder, encoder_dim, config['global_params'], append_pca_layer=False)
 
     # 定义优化器
     if config['train']['optim'] == 'SGD':
@@ -70,6 +73,7 @@ if __name__ == '__main__':
     criterion = nn.TripletMarginLoss(
         margin=float(config['train']['margin']) ** 0.5, p=2, reduction='sum').to(device)
 
+    # 初始化模型对象
     model = model.to(device)
 
     print('===> Loading dataset(s)')
@@ -100,5 +104,19 @@ if __name__ == '__main__':
     best_score = 0
 
     for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
-        train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device, epoch, opt, config, writer)
-        print('xxx')
+        print('===> Running Train')
+
+        train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device, epoch, opt, config)
+
+        # 更新学习率
+        if scheduler is not None:
+            scheduler.step(epoch)
+
+        # 执行验证程序
+        if (epoch % int(config['train']['eval_every'])) == 0:
+            print('===> Running Eval')
+
+    # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
+    torch.cuda.empty_cache()
+
+    print('Done')
