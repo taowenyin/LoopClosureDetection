@@ -350,7 +350,7 @@ class MSLS(Dataset):
         # reset subset counter
         self.current_subset = 0
 
-    def update_subcache(self, net=None):
+    def update_sub_cache(self, net=None, output_dim=None):
 
         # reset triplets
         self.triplets = []
@@ -413,9 +413,9 @@ class MSLS(Dataset):
         with torch.no_grad():
 
             # initialize descriptors
-            qvecs = torch.zeros(len(qidxs), net.meta['outputdim']).to(self.device)
-            pvecs = torch.zeros(len(pidxs), net.meta['outputdim']).to(self.device)
-            nvecs = torch.zeros(len(nidxs), net.meta['outputdim']).to(self.device)
+            qvecs = torch.zeros(len(qidxs), output_dim).to(self.device)
+            pvecs = torch.zeros(len(pidxs), output_dim).to(self.device)
+            nvecs = torch.zeros(len(nidxs), output_dim).to(self.device)
 
             bs = opt['batch_size']
 

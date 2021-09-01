@@ -1,13 +1,17 @@
 import argparse
 import configparser
-import torch
 import random
 import numpy as np
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
 from os.path import join
 from segattlcd.tools import LOOP_CLOSURE_ROOT_DIR
 from segattlcd.tools.datasets import input_transform
 from segattlcd.dataset.mapillary_sls.msls import MSLS
+from segattlcd.train.train_epoch import train_epoch
 from tqdm.auto import trange
 
 if __name__ == '__main__':
@@ -49,31 +53,52 @@ if __name__ == '__main__':
     else:
         resize = (int(config['train']['image_resize_w']), int(config['train']['image_resize_h']))
 
-        print('===> Loading dataset(s)')
-        train_dataset = MSLS(opt.dataset_root_dir,
-                             cities=config['msls']['train_cities'],
-                             nNeg=int(config['train']['nNeg']),
-                             transform=input_transform(resize),
-                             bs=int(config['train']['batch_size']),
-                             threads=opt.threads,
-                             margin=float(config['train']['margin']),
-                             exclude_panos=config['train'].getboolean('exclude_panos'),
-                             mode='train')
-        validation_dataset = MSLS(opt.dataset_root_dir,
-                                  cities=config['msls']['validation_cities'],
-                                  nNeg=int(config['train']['nNeg']),
-                                  transform=input_transform(resize),
-                                  bs=int(config['train']['batch_size']),
-                                  threads=opt.threads,
-                                  margin=float(config['train']['margin']),
-                                  exclude_panos=config['train'].getboolean('exclude_panos'),
-                                  mode='val',
-                                  posDistThr=25)
-        print('===> Training query set:', len(train_dataset.qIdx))
-        print('===> Evaluating on val set, query count:', len(validation_dataset.qIdx))
+    optimizer = None
+    scheduler = None
 
-        not_improved = 0
-        best_score = 0
+    # 定义优化器
+    if config['train']['optim'] == 'SGD':
+        optimizer = optim.SGD(filter(lambda par: par.requires_grad,
+                                     model.parameters()), lr=float(config['train']['lr']),
+                              momentum=float(config['train']['momentum']),
+                              weight_decay=float(config['train']['weight_decay']))
 
-        for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
-            print('xxx')
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=int(config['train']['lr_step']),
+                                              gamma=float(config['train']['lr_gamma']))
+
+    # 使用三元损失函数
+    criterion = nn.TripletMarginLoss(
+        margin=float(config['train']['margin']) ** 0.5, p=2, reduction='sum').to(device)
+
+    model = model.to(device)
+
+    print('===> Loading dataset(s)')
+    train_dataset = MSLS(opt.dataset_root_dir,
+                         cities=config['msls']['train_cities'],
+                         nNeg=int(config['train']['nNeg']),
+                         transform=input_transform(resize),
+                         bs=int(config['train']['batch_size']),
+                         threads=opt.threads,
+                         margin=float(config['train']['margin']),
+                         exclude_panos=config['train'].getboolean('exclude_panos'),
+                         mode='train')
+    validation_dataset = MSLS(opt.dataset_root_dir,
+                              cities=config['msls']['validation_cities'],
+                              nNeg=int(config['train']['nNeg']),
+                              transform=input_transform(resize),
+                              bs=int(config['train']['batch_size']),
+                              threads=opt.threads,
+                              margin=float(config['train']['margin']),
+                              exclude_panos=config['train'].getboolean('exclude_panos'),
+                              mode='val',
+                              posDistThr=25)
+    print('===> Training query set:', len(train_dataset.qIdx))
+    print('===> Evaluating on val set, query count:', len(validation_dataset.qIdx))
+    print('===> Training model')
+
+    not_improved = 0
+    best_score = 0
+
+    for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
+        train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device, epoch, opt, config, writer)
+        print('xxx')
