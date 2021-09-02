@@ -26,6 +26,11 @@ default_cities = {
 
 
 class MSLS(Dataset):
+    '''
+    :param nNeg 每次选择反例数
+    :param cached_queries 每批Q的数量
+    :param cached_negatives 每批N的数量
+    '''
     # def __init__(self, root_dir, cities='', nNeg=5, transform=None, bs=24, mode='train', threads=8, margin=0.1,
     #              exclude_panos=True, task='im2im', subtask='all', seq_length=1, posDistThr=10, negDistThr=25,
     #              cached_queries=1000, cached_negatives=1000, positive_sampling=True):

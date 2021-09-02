@@ -29,9 +29,9 @@ def train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device,
         # train_dataset.update_sub_cache(model, pool_size)
         train_dataset.update_sub_cache()
 
-        training_data_loader = DataLoader(dataset=train_dataset, num_workers=opt.threads,
+        training_data_loader = DataLoader(dataset=train_dataset,
                                           batch_size=int(config['train']['batch_size']), shuffle=True,
-                                          collate_fn=MSLS.collate_fn, pin_memory=cuda)
+                                          collate_fn=MSLS.collate_fn)
 
         tqdm.write('Allocated: ' + human_bytes(torch.cuda.memory_allocated()))
         tqdm.write('Cached:    ' + human_bytes(torch.cuda.memory_cached()))
