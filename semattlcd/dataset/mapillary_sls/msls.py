@@ -14,7 +14,7 @@ from sklearn.neighbors import NearestNeighbors
 from PIL import Image
 from torch.utils.data import Dataset
 from tqdm import tqdm
-from segattlcd.dataset.mapillary_sls.generic_dataset import ImagesFromList
+from semattlcd.dataset.mapillary_sls.generic_dataset import ImagesFromList
 
 default_cities = {
     'train': ["trondheim", "london", "boston", "melbourne", "amsterdam", "helsinki",
@@ -26,9 +26,12 @@ default_cities = {
 
 
 class MSLS(Dataset):
+    # def __init__(self, root_dir, cities='', nNeg=5, transform=None, bs=24, mode='train', threads=8, margin=0.1,
+    #              exclude_panos=True, task='im2im', subtask='all', seq_length=1, posDistThr=10, negDistThr=25,
+    #              cached_queries=1000, cached_negatives=1000, positive_sampling=True):
     def __init__(self, root_dir, cities='', nNeg=5, transform=None, bs=24, mode='train', threads=8, margin=0.1,
                  exclude_panos=True, task='im2im', subtask='all', seq_length=1, posDistThr=10, negDistThr=25,
-                 cached_queries=1000, cached_negatives=1000, positive_sampling=True):
+                 cached_queries=100, cached_negatives=100, positive_sampling=True):
 
         # initializing
         assert mode in ('train', 'val', 'test')

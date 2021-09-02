@@ -8,15 +8,15 @@ import torch.nn as nn
 import torch.optim as optim
 
 from os.path import join
-from segattlcd.tools import LOOP_CLOSURE_ROOT_DIR
-from segattlcd.tools.datasets import input_transform
-from segattlcd.dataset.mapillary_sls.msls import MSLS
-from segattlcd.train.train_epoch import train_epoch
-from segattlcd.models.models_generic import get_model, get_backend
+from semattlcd.tools import LOOP_CLOSURE_ROOT_DIR
+from semattlcd.tools.datasets import input_transform
+from semattlcd.dataset.mapillary_sls.msls import MSLS
+from semattlcd.train.train_epoch import train_epoch
+from semattlcd.models.models_generic import get_model, get_backend
 from tqdm.auto import trange
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Loop-Closure-Detection-train')
+    parser = argparse.ArgumentParser(description='Semantic-Attention-LCD-train')
 
     parser.add_argument('--config_path', type=str, default=join(LOOP_CLOSURE_ROOT_DIR, 'configs/train.ini'),
                         help='File name (with extension) to an ini file that stores most of the configuration data for Loop Closure')
@@ -56,7 +56,9 @@ if __name__ == '__main__':
     scheduler = None
 
     print('===> Building model')
+    # 构建后端编码
     encoder_dim, encoder = get_backend()
+    # 根据编码器获得模型
     model = get_model(encoder, encoder_dim, config['global_params'], append_pca_layer=False)
 
     # 定义优化器
@@ -68,6 +70,9 @@ if __name__ == '__main__':
 
         scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=int(config['train']['lr_step']),
                                               gamma=float(config['train']['lr_gamma']))
+    elif config['train']['optim'] == 'ADAM':
+        optimizer = optim.Adam(filter(lambda par: par.requires_grad,
+                                      model.parameters()), lr=float(config['train']['lr']))  # , betas=(0, 0.9))
 
     # 使用三元损失函数
     criterion = nn.TripletMarginLoss(
@@ -82,19 +87,19 @@ if __name__ == '__main__':
                          nNeg=int(config['train']['nNeg']),
                          transform=input_transform(resize),
                          bs=int(config['train']['batch_size']),
+                         mode='train',
                          threads=opt.threads,
                          margin=float(config['train']['margin']),
-                         exclude_panos=config['train'].getboolean('exclude_panos'),
-                         mode='train')
+                         exclude_panos=config['train'].getboolean('exclude_panos'))
     validation_dataset = MSLS(opt.dataset_root_dir,
                               cities=config['msls']['validation_cities'],
                               nNeg=int(config['train']['nNeg']),
                               transform=input_transform(resize),
                               bs=int(config['train']['batch_size']),
+                              mode='val',
                               threads=opt.threads,
                               margin=float(config['train']['margin']),
                               exclude_panos=config['train'].getboolean('exclude_panos'),
-                              mode='val',
                               posDistThr=25)
     print('===> Training query set:', len(train_dataset.qIdx))
     print('===> Evaluating on val set, query count:', len(validation_dataset.qIdx))

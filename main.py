@@ -8,7 +8,7 @@ import train_eval
 import cluster
 import os
 
-from segattlcd.models.NetVLAD import NetVLAD, EmbedNet
+from semattlcd.models.NetVLAD import NetVLAD, EmbedNet
 from dataset import Pitts250k, Tokyo247, Tokyo247Query
 from Utils.Flatten import Flatten
 from Utils.L2Normalize import L2Normalize
