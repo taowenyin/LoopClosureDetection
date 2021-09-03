@@ -328,7 +328,11 @@ class MSLS(Dataset):
         if len(batch) == 0:
             return None, None, None, None, None
 
-        query, positive, negatives, indices = zip(*batch)
+        # query, positive, negatives, indices = zip(*batch)
+        raw_data, indices = zip(*batch)
+        query = [i[0] for i in raw_data]
+        positive = [i[1] for i in raw_data]
+        negatives = [i[2:] for i in raw_data]
 
         query = data.dataloader.default_collate(query)
         positive = data.dataloader.default_collate(positive)

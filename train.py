@@ -50,7 +50,7 @@ if __name__ == '__main__':
         torch.cuda.manual_seed(int(config['train']['seed']))
 
     # 缩放图片后的大小
-    resize = (int(config['train']['image_resize_w']), int(config['train']['image_resize_h']))
+    resize = (int(config['train']['image_resize_h']), int(config['train']['image_resize_w']))
 
     optimizer = None
     scheduler = None
