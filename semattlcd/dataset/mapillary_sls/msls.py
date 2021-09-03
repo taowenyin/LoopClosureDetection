@@ -1,20 +1,48 @@
-#  Copyright (c) Facebook, Inc. and its affiliates.
+'''
+Copyright (c) Facebook, Inc. and its affiliates.
+
+MIT License
+
+Copyright (c) 2020 mapillary
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Modified by Stephen Hausler, Sourav Garg, Ming Xu, Michael Milford and Tobias Fischer
+
+'''
+
 
 import numpy as np
+from PIL import Image
+from torch.utils.data import Dataset
 import torch.utils.data as data
 import pandas as pd
+from os.path import join
+from sklearn.neighbors import NearestNeighbors
 import math
 import torch
 import random
 import sys
 import itertools
-
-from os.path import join
-from sklearn.neighbors import NearestNeighbors
-from PIL import Image
-from torch.utils.data import Dataset
 from tqdm import tqdm
 from semattlcd.dataset.mapillary_sls.generic_dataset import ImagesFromList
+
 
 default_cities = {
     'train': ["trondheim", "london", "boston", "melbourne", "amsterdam", "helsinki",
@@ -26,17 +54,17 @@ default_cities = {
 
 
 class MSLS(Dataset):
-    '''
+    """
     :param nNeg 每次选择反例数
     :param cached_queries 每批Q的数量
     :param cached_negatives 每批N的数量
-    '''
-    # def __init__(self, root_dir, cities='', nNeg=5, transform=None, bs=24, mode='train', threads=8, margin=0.1,
-    #              exclude_panos=True, task='im2im', subtask='all', seq_length=1, posDistThr=10, negDistThr=25,
-    #              cached_queries=1000, cached_negatives=1000, positive_sampling=True):
-    def __init__(self, root_dir, cities='', nNeg=5, transform=None, bs=24, mode='train', threads=8, margin=0.1,
-                 exclude_panos=True, task='im2im', subtask='all', seq_length=1, posDistThr=10, negDistThr=25,
-                 cached_queries=100, cached_negatives=100, positive_sampling=True):
+    """
+    # def __init__(self, root_dir, cities='', nNeg=5, transform=None, mode='train', task='im2im', subtask='all',
+    #              seq_length=1, posDistThr=10, negDistThr=25, cached_queries=1000, cached_negatives=1000,
+    #              positive_sampling=True, bs=24, threads=8, margin=0.1, exclude_panos=True):
+    def __init__(self, root_dir, cities='', nNeg=5, transform=None, mode='train', task='im2im', subtask='all',
+                 seq_length=1, posDistThr=10, negDistThr=25, cached_queries=100, cached_negatives=100,
+                 positive_sampling=True, bs=24, threads=8, margin=0.1, exclude_panos=True):
 
         # initializing
         assert mode in ('train', 'val', 'test')
@@ -60,6 +88,8 @@ class MSLS(Dataset):
         self.sideways = []
         self.night = []
 
+        self.all_pos_indices = []
+
         # hyper-parameters
         self.nNeg = nNeg
         self.margin = margin
@@ -73,10 +103,10 @@ class MSLS(Dataset):
         self.exclude_panos = exclude_panos
         self.mode = mode
         self.subtask = subtask
+        print('Exclude panoramas:', self.exclude_panos)
 
         # other
         self.transform = transform
-        self.query_keys_with_no_match = []
 
         # define sequence length based on task
         if task == 'im2im':
@@ -136,8 +166,10 @@ class MSLS(Dataset):
                 unique_qSeqIdx = np.unique(qSeqIdxs)
                 unique_dbSeqIdx = np.unique(dbSeqIdxs)
 
-                # if a combination of city, task and subtask is chosen, where there are no query/dabase images, then continue to next city
-                if len(unique_qSeqIdx) == 0 or len(unique_dbSeqIdx) == 0: continue
+                # if a combination of city, task and subtask is chosen, where there are no query/dabase images,
+                # then continue to next city
+                if len(unique_qSeqIdx) == 0 or len(unique_dbSeqIdx) == 0:
+                    continue
 
                 self.qImages.extend(qSeqKeys)
                 self.dbImages.extend(dbSeqKeys)
@@ -147,31 +179,33 @@ class MSLS(Dataset):
 
                 # useful indexing functions
                 seqIdx2frameIdx = lambda seqIdx, seqIdxs: seqIdxs[seqIdx]
-                frameIdx2seqIdx = lambda frameIdx, seqIdxs: np.where(seqIdxs == frameIdx)[0][1]
+                # frameIdx2seqIdx = lambda frameIdx, seqIdxs: np.where(seqIdxs == frameIdx)[0][1]
                 frameIdx2uniqFrameIdx = lambda frameIdx, uniqFrameIdx: np.where(np.in1d(uniqFrameIdx, frameIdx))[0]
                 uniqFrameIdx2seqIdx = lambda frameIdxs, seqIdxs: \
-                np.where(np.in1d(seqIdxs, frameIdxs).reshape(seqIdxs.shape))[0]
+                    np.where(np.in1d(seqIdxs, frameIdxs).reshape(seqIdxs.shape))[0]
 
                 # utm coordinates
                 utmQ = qData[['easting', 'northing']].values.reshape(-1, 2)
                 utmDb = dbData[['easting', 'northing']].values.reshape(-1, 2)
 
+                night, sideways, index = qData['night'].values, (
+                            qData['view_direction'] == 'Sideways').values, qData.index
+
                 # find positive images for training
                 neigh = NearestNeighbors(algorithm='brute')
                 neigh.fit(utmDb)
-                D, I = neigh.radius_neighbors(utmQ, self.posDistThr)
+                pos_distances, pos_indices = neigh.radius_neighbors(utmQ, self.posDistThr)
+                self.all_pos_indices.extend(pos_indices)
 
-                if mode == 'train':
+                if self.mode == 'train':
                     nD, nI = neigh.radius_neighbors(utmQ, self.negDistThr)
 
-                night, sideways, index = qData['night'].values, (
-                            qData['view_direction'] == 'Sideways').values, qData.index
                 for q_seq_idx in range(len(qSeqKeys)):
 
                     q_frame_idxs = seqIdx2frameIdx(q_seq_idx, qSeqIdxs)
                     q_uniq_frame_idx = frameIdx2uniqFrameIdx(q_frame_idxs, unique_qSeqIdx)
 
-                    p_uniq_frame_idxs = np.unique([p for pos in I[q_uniq_frame_idx] for p in pos])
+                    p_uniq_frame_idxs = np.unique([p for pos in pos_indices[q_uniq_frame_idx] for p in pos])
 
                     # the query image has at least one positive
                     if len(p_uniq_frame_idxs) > 0:
@@ -180,7 +214,8 @@ class MSLS(Dataset):
                         self.pIdx.append(p_seq_idx + _lenDb)
                         self.qIdx.append(q_seq_idx + _lenQ)
 
-                        # in training we have two thresholds, one for finding positives and one for finding images that we are certain are negatives.
+                        # in training we have two thresholds, one for finding positives and one for finding images
+                        # that we are certain are negatives.
                         if self.mode == 'train':
 
                             n_uniq_frame_idxs = np.unique([n for nonNeg in nI[q_uniq_frame_idx] for n in nonNeg])
@@ -189,12 +224,10 @@ class MSLS(Dataset):
                             self.nonNegIdx.append(n_seq_idx + _lenDb)
 
                             # gather meta which is useful for positive sampling
-                            if sum(night[np.in1d(index, q_frame_idxs)]) > 0: self.night.append(len(self.qIdx) - 1)
-                            if sum(sideways[np.in1d(index, q_frame_idxs)]) > 0: self.sideways.append(len(self.qIdx) - 1)
-
-                    else:
-                        query_key = qSeqKeys[q_seq_idx].split('/')[-1][:-4]
-                        self.query_keys_with_no_match.append(query_key)
+                            if sum(night[np.in1d(index, q_frame_idxs)]) > 0:
+                                self.night.append(len(self.qIdx) - 1)
+                            if sum(sideways[np.in1d(index, q_frame_idxs)]) > 0:
+                                self.sideways.append(len(self.qIdx) - 1)
 
             # when GPS / UTM / pano info is not available
             elif self.mode in ['test']:
@@ -222,7 +255,8 @@ class MSLS(Dataset):
                 # add query index
                 self.qIdx.extend(list(range(_lenQ, len(qSeqKeys) + _lenQ)))
 
-        # if a combination of cities, task and subtask is chosen, where there are no query/database images, then exit
+                # if a combination of cities, task and subtask is chosen, where there are no query/database images,
+                # then exit
         if len(self.qImages) == 0 or len(self.dbImages) == 0:
             print("Exiting...")
             print(
@@ -279,15 +313,17 @@ class MSLS(Dataset):
         if len(self.sideways) != 0 and len(self.night) != 0:
             print("Sideways and Night weighted with {:.4f}".format(1 + N / len(self.night) + N / len(self.sideways)))
 
-    def arange_as_seq(self, data, path, seq_length):
+    @staticmethod
+    def arange_as_seq(data, path, seq_length):
 
         seqInfo = pd.read_csv(join(path, 'seq_info.csv'), index_col=0)
 
         seq_keys, seq_idxs = [], []
-        for idx in data.index:
+        for idx in tqdm(data.index):
 
             # edge cases.
-            if idx < (seq_length // 2) or idx >= (len(seqInfo) - seq_length // 2): continue
+            if idx < (seq_length // 2) or idx >= (len(seqInfo) - seq_length // 2):
+                continue
 
             # find surrounding frames in sequence
             seq_idx = np.arange(-seq_length // 2, seq_length // 2) + 1 + idx
@@ -302,7 +338,8 @@ class MSLS(Dataset):
 
         return seq_keys, np.asarray(seq_idxs)
 
-    def filter(self, seqKeys, seqIdxs, center_frame_condition):
+    @staticmethod
+    def filter(seqKeys, seqIdxs, center_frame_condition):
         keys, idxs = [], []
         for key, idx in zip(seqKeys, seqIdxs):
             if idx[len(idx) // 2] in center_frame_condition:
@@ -310,7 +347,8 @@ class MSLS(Dataset):
                 idxs.append(idx)
         return keys, np.asarray(idxs)
 
-    def collate_fn(_batch):
+    @staticmethod
+    def collate_fn(batch):
         """Creates mini-batch tensors from the list of tuples (query, positive, negatives).
 
         Args:
@@ -324,15 +362,11 @@ class MSLS(Dataset):
             negatives: torch tensor of shape (batch_size, n, 3, h, w).
         """
 
-        batch = list(filter(lambda x: x is not None, _batch))
+        batch = list(filter(lambda x: x is not None, batch))
         if len(batch) == 0:
             return None, None, None, None, None
 
-        # query, positive, negatives, indices = zip(*batch)
-        raw_data, indices = zip(*batch)
-        query = [i[0] for i in raw_data]
-        positive = [i[1] for i in raw_data]
-        negatives = [i[2:] for i in raw_data]
+        query, positive, negatives, indices = zip(*batch)
 
         query = data.dataloader.default_collate(query)
         positive = data.dataloader.default_collate(positive)
@@ -362,13 +396,13 @@ class MSLS(Dataset):
         # reset subset counter
         self.current_subset = 0
 
-    def update_sub_cache(self, net=None, output_dim=None):
+    def update_sub_cache(self, net=None, outputdim=None):
 
         # reset triplets
         self.triplets = []
 
         # if there is no network associate to the cache, then we don't do any hard negative mining.
-        # Instead we just create som naive triplets based on distance.
+        # Instead we just create some naive triplets based on distance.
         if net is None:
             qidxs = np.random.choice(len(self.qIdx), self.cached_queries, replace=False)
 
@@ -403,6 +437,9 @@ class MSLS(Dataset):
             return
 
         # take n query images
+        if self.current_subset >= len(self.subcache_indices):
+            tqdm.write('Reset epoch - FIX THIS LATER!')
+            self.current_subset = 0
         qidxs = np.asarray(self.subcache_indices[self.current_subset])
 
         # take their positive in the database
@@ -425,24 +462,33 @@ class MSLS(Dataset):
         with torch.no_grad():
 
             # initialize descriptors
-            qvecs = torch.zeros(len(qidxs), output_dim).to(self.device)
-            pvecs = torch.zeros(len(pidxs), output_dim).to(self.device)
-            nvecs = torch.zeros(len(nidxs), output_dim).to(self.device)
+            qvecs = torch.zeros(len(qidxs), outputdim).to(self.device)
+            pvecs = torch.zeros(len(pidxs), outputdim).to(self.device)
+            nvecs = torch.zeros(len(nidxs), outputdim).to(self.device)
 
             bs = opt['batch_size']
 
             # compute descriptors
-            for i, batch in tqdm(enumerate(qloader), desc='compute query descriptors'):
+            for i, batch in tqdm(enumerate(qloader), desc='compute query descriptors', total=len(qidxs) // bs,
+                                 position=2, leave=False):
                 X, y = batch
-                qvecs[i * bs:(i + 1) * bs, :] = net(X.to(self.device)).data
-            for i, batch in tqdm(enumerate(ploader), desc='compute positive descriptors'):
+                image_encoding = net.encoder(X.to(self.device))
+                vlad_encoding = net.pool(image_encoding)
+                qvecs[i * bs:(i + 1) * bs, :] = vlad_encoding
+            for i, batch in tqdm(enumerate(ploader), desc='compute positive descriptors', total=len(pidxs) // bs,
+                                 position=2, leave=False):
                 X, y = batch
-                pvecs[i * bs:(i + 1) * bs, :] = net(X.to(self.device)).data
-            for i, batch in tqdm(enumerate(nloader), desc='compute negative descriptors'):
+                image_encoding = net.encoder(X.to(self.device))
+                vlad_encoding = net.pool(image_encoding)
+                pvecs[i * bs:(i + 1) * bs, :] = vlad_encoding
+            for i, batch in tqdm(enumerate(nloader), desc='compute negative descriptors', total=len(nidxs) // bs,
+                                 position=2, leave=False):
                 X, y = batch
-                nvecs[i * bs:(i + 1) * bs, :] = net(X.to(self.device)).data
+                image_encoding = net.encoder(X.to(self.device))
+                vlad_encoding = net.pool(image_encoding)
+                nvecs[i * bs:(i + 1) * bs, :] = vlad_encoding
 
-        print('>> Searching for hard negatives...')
+        tqdm.write('>> Searching for hard negatives...')
         # compute dot product scores and ranks on GPU
         pScores = torch.mm(qvecs, pvecs.t())
         pScores, pRanks = torch.sort(pScores, dim=1, descending=True)
@@ -477,7 +523,8 @@ class MSLS(Dataset):
             violatingNeg = 0 < loss
 
             # if less than nNeg are violating then skip this query
-            if np.sum(violatingNeg) <= self.nNeg: continue
+            if np.sum(violatingNeg) <= self.nNeg:
+                continue
 
             # select hardest negatives
             hardest_negIdx = np.argsort(loss)[:self.nNeg]
@@ -503,7 +550,6 @@ class MSLS(Dataset):
         self.current_subset += 1
 
     def __getitem__(self, idx):
-
         # get triplet
         triplet, target = self.triplets[idx]
 
@@ -513,9 +559,9 @@ class MSLS(Dataset):
         nidx = triplet[2:]
 
         # load images into triplet list
-        output = [torch.stack([self.transform(Image.open(im)) for im in self.qImages[qidx].split(',')])]
-        output.append(torch.stack([self.transform(Image.open(im)) for im in self.dbImages[pidx].split(',')]))
-        output.extend(
-            [torch.stack([self.transform(Image.open(im)) for im in self.dbImages[idx].split(',')]) for idx in nidx])
+        query = self.transform(Image.open(self.qImages[qidx]))
+        positive = self.transform(Image.open(self.dbImages[pidx]))
+        negatives = [self.transform(Image.open(self.dbImages[idx])) for idx in nidx]
+        negatives = torch.stack(negatives, 0)
 
-        return torch.cat(output), torch.tensor(target)
+        return query, positive, negatives, [qidx, pidx] + nidx
