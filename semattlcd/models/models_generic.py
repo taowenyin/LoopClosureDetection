@@ -34,6 +34,10 @@ def get_model(encoder, encoder_dim, config, append_pca_layer=False):
     nn_model = nn.Module()
     nn_model.add_module('encoder', encoder)
 
+    if config['pooling'].lower() == 'semattlcd':
+        pooling_net = nn.Module()
+        nn_model.add_module('pool', pooling_net)
+
     if append_pca_layer:
         num_pcs = int(config['num_pcs'])
         encoder_output_dim = encoder_dim

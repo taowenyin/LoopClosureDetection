@@ -47,9 +47,13 @@ def train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device,
             B, C, H, W = query.shape
             nNeg = torch.sum(negCounts)
             data_input = torch.cat([query, positives, negatives])
-            data_input = data_input.to(device)
 
-            # todo 模型输出
+            data_input = data_input.to(device)
+            image_encoding = model.encoder(data_input)
+            pooling_encoding = model.pool(image_encoding)
+
+            # 拆分结果
+            pooling_Q, pooling_P, pooling_N = torch.split(pooling_encoding, [B, B, nNeg])
 
             optimizer.zero_grad()
 
@@ -57,8 +61,21 @@ def train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device,
             # due to potential difference in number of negatives have to
             # do it per query, per negative
             loss = 0
+            for i, negCount in enumerate(negCounts):
+                for n in range(negCount):
+                    negIx = (torch.sum(negCounts[:i]) + n).item()
+                    loss += criterion(pooling_Q[i: i + 1], pooling_P[i: i + 1], pooling_N[negIx:negIx + 1])
 
-            print('xxx')
+            loss /= nNeg.float().to(device)  # normalise by actual number of negatives
+            loss.backward()
+            optimizer.step()
+            del data_input, image_encoding, pooling_encoding, pooling_Q, pooling_P, pooling_N
+            del query, positives, negatives
+
+            batch_loss = loss.item()
+            epoch_loss += batch_loss
+
+            # todo 验证集
 
         start_iter += len(training_data_loader)
         del training_data_loader, loss
