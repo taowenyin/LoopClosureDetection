@@ -30,6 +30,7 @@ class FeaturesModel(nn.Module):
         # 获取BackBone
         self.backbone = deeplab.backbone
 
+        # 获取1/4特征
         self.conv1 = self.backbone.conv1
         self.bn1 = self.backbone.bn1
         self.relu = self.backbone.relu
@@ -71,17 +72,12 @@ class FeaturesModel(nn.Module):
 
 
 def get_backend():
-    # 创建DeepLabV3
-    deeplab = models.segmentation.deeplabv3_resnet50(pretrained=True)
-    # 获取BackBone
-    backbone = deeplab.backbone
-    # 获取ASPP
-    aspp = deeplab.classifier[0]
+    # 编码器的输出通道数
+    enc_dim = 512
+    # 编码器模型
+    enc = FeaturesModel()
 
-    layers = [backbone, aspp]
-    enc = nn.Sequential(*layers)
-
-    return backbone, enc
+    return enc_dim, enc
 
 
 def get_model(encoder, encoder_dim, config):
