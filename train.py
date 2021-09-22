@@ -56,10 +56,10 @@ if __name__ == '__main__':
     scheduler = None
 
     print('===> Building model')
-    # 构建后端编码
+    # 构建编码器
     encoder_dim, encoder = get_backend()
-    # 根据编码器获得模型
-    model = get_model(encoder, encoder_dim, config['global_params'], append_pca_layer=False)
+    # 构建Pooling
+    model = get_model(encoder, encoder_dim)
 
     # 定义优化器
     if config['train']['optim'] == 'SGD':
