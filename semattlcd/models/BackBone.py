@@ -41,7 +41,7 @@ class BackBone(nn.Module):
 
         # 经过backbone和ASPP获取1/8特征
         output = self.backbone(x)
-        aspp_output = self.aspp(output)
+        aspp_output = self.aspp(output["out"])
 
         # 把ASPP变大2倍，与low_level_features大小相同，为1/4
         aspp_output = F.interpolate(aspp_output, size=(int(math.ceil(x.size()[-2] / 4)), int(math.ceil(x.size()[-1] / 4))),
