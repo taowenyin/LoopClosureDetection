@@ -3,11 +3,11 @@ from semattlcd.models.BackBone import BackBone
 from semattlcd.models.SemanticAttention import SemanticAttention
 
 
-def get_backend():
+def get_backend(config):
     # 编码器的输出通道数
     enc_dim = 512
     # 编码器模型
-    enc = BackBone()
+    enc = BackBone(config)
 
     return enc_dim, enc
 

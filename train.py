@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     print('===> Building model')
     # 构建编码器
-    encoder_dim, encoder = get_backend()
+    encoder_dim, encoder = get_backend(config['global_params'])
     # 构建Pooling
     model = get_model(encoder, encoder_dim)
 
