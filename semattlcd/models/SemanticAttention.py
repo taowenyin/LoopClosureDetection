@@ -9,4 +9,6 @@ class SemanticAttention(nn.Module):
         self.dim = dim
 
     def forward(self, x):
-        return x
+        out = torch.flatten(x, start_dim=1)
+
+        return out
