@@ -59,7 +59,7 @@ if __name__ == '__main__':
     # 构建编码器
     encoder_dim, encoder = get_backend(config['global_params'])
     # 构建Pooling
-    model = get_model(encoder, encoder_dim)
+    model = get_model(encoder, encoder_dim, config['global_params'])
 
     # 定义优化器
     if config['train']['optim'] == 'SGD':
