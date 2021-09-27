@@ -1,6 +1,6 @@
 import torch
 
-from tqdm.auto import trange, tqdm
+from tqdm import trange, tqdm
 from torch.utils.data import DataLoader
 from semattlcd.dataset.mapillary_sls.msls import MSLS
 from semattlcd.tools.common import human_bytes
@@ -32,9 +32,6 @@ def train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device,
         training_data_loader = DataLoader(dataset=train_dataset,
                                           batch_size=int(config['train']['batch_size']), shuffle=True,
                                           collate_fn=MSLS.collate_fn)
-
-        tqdm.write('Allocated: ' + human_bytes(torch.cuda.memory_allocated()))
-        tqdm.write('Cached:    ' + human_bytes(torch.cuda.memory_cached()))
 
         model.train()
         for iteration, (query, positives, negatives, negCounts, indices) in \
@@ -75,7 +72,8 @@ def train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device,
             batch_loss = loss.item()
             epoch_loss += batch_loss
 
-            # todo 验证集
+            if iteration % 50 == 0 or n_batches <= 10:
+                tqdm.write("==> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch_num, iteration, n_batches, batch_loss))
 
         start_iter += len(training_data_loader)
         del training_data_loader, loss

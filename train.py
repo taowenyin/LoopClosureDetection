@@ -13,7 +13,7 @@ from semattlcd.tools.datasets import input_transform
 from semattlcd.dataset.mapillary_sls.msls import MSLS
 from semattlcd.train.train_epoch import train_epoch
 from semattlcd.models.models_generic import get_model, get_backend
-from tqdm.auto import trange
+from tqdm import trange, tqdm
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Semantic-Attention-LCD-train')
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     parser.add_argument('--config_path', type=str, default=join(LOOP_CLOSURE_ROOT_DIR, 'configs/train.ini'),
                         help='File name (with extension) to an ini file that stores most of the configuration data for Loop Closure')
     parser.add_argument('--dataset_root_dir', type=str,
-                        default='/home/taowenyin/MyCode/Dataset/Mapillary_Street_Level_Sequences',
+                        default='/mnt/Dataset/Mapillary_Street_Level_Sequences',
                         help='Root directory of dataset')
     parser.add_argument('--nEpochs', type=int, default=30, help='number of epochs to train for')
     parser.add_argument('--nocuda', action='store_true', help='If true, use CPU only. Else use GPU.')
@@ -109,7 +109,7 @@ if __name__ == '__main__':
     best_score = 0
 
     for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
-        print('===> Running Train')
+        tqdm.write('===> Running Train')
 
         train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device, epoch, opt, config)
 
@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
         # 执行验证程序
         if (epoch % int(config['train']['eval_every'])) == 0:
-            print('===> Running Eval')
+            tqdm.write('===> Running Eval')
 
     # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
     torch.cuda.empty_cache()
