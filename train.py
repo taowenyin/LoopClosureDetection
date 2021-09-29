@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
 from os.path import join
 from semattlcd.tools import LOOP_CLOSURE_ROOT_DIR
@@ -107,11 +108,14 @@ if __name__ == '__main__':
 
     not_improved = 0
     best_score = 0
+    avg_loss = []
 
     for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
         tqdm.write('===> Running Train')
 
-        train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device, epoch, opt, config)
+        avg_loss_epoch = train_epoch(train_dataset, model, optimizer, criterion,
+                                     encoder_dim, device, epoch, opt, config)
+        avg_loss.append(avg_loss_epoch)
 
         # 更新学习率
         if scheduler is not None:
@@ -123,5 +127,14 @@ if __name__ == '__main__':
 
     # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
     torch.cuda.empty_cache()
+
+    plt.plot(np.arange(len(avg_loss)), avg_loss, label='平均损失')
+
+    plt.xlabel("EPOCH")
+    plt.ylabel("平均损失")
+    plt.title("训练损失")
+    plt.legend()
+
+    plt.show()
 
     print('Done')

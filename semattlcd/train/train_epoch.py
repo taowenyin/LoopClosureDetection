@@ -82,3 +82,5 @@ def train_epoch(train_dataset, model, optimizer, criterion, encoder_dim, device,
 
     avg_loss = epoch_loss / n_batches
     tqdm.write("===> Epoch {} Complete: Avg. Loss: {:.4f}".format(epoch_num, avg_loss))
+
+    return avg_loss

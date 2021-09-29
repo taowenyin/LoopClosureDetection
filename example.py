@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 
 from torchvision import models
 from torchvision.models._utils import IntermediateLayerGetter
@@ -9,38 +11,17 @@ from typing import List
 
 
 if __name__ == '__main__':
-    # 创建DeepLabV3
-    # deeplab = models.segmentation.deeplabv3_resnet50(pretrained=True)
-    # deeplab = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
-    deeplab = models.segmentation.deeplabv3_resnet101(pretrained=True)
+    data = np.array([[1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7]])
+    name = np.arange(10)
 
-    # 获取BackBone
-    backbone = deeplab.backbone
-    # 获取ASPP
-    aspp = deeplab.classifier[0]
+    print(data.shape)
 
-    quarter_layers: List[nn.Module] = [
-        # 获取1/4特征
-        backbone.conv1,
-        backbone.bn1,
-        backbone.relu,
-        backbone.maxpool,
-        backbone.layer1,
-    ]
+    for i in range(data.shape[0]):
+        plt.plot(np.arange(data.shape[1]), data[i], label=i)
 
-    activate_layers: List[nn.Module] = [
-        # Low Level要经过1x1的卷积
-        nn.Conv2d(256, 256, kernel_size=1, bias=False),
-        nn.BatchNorm2d(256),
-        nn.ReLU()
-    ]
+    plt.xlabel("输入数据 x")
+    plt.ylabel("sin(x) 或者 cos(x)")
+    plt.title("三角函数图")
+    plt.legend()
 
-    quarter_block = nn.Sequential(*(quarter_layers + activate_layers))
-
-    images = torch.randn(4, 3, 352, 480)
-
-    out = quarter_block(images)
-
-    print(deeplab)
-
-    print('xxx')
+    plt.show()
