@@ -130,9 +130,36 @@ if __name__ == '__main__':
 
     plt.plot(np.arange(len(avg_loss)), avg_loss, label='平均损失')
 
+    loss_min = np.amin(avg_loss, axis=0)
+    loss_max = np.amax(avg_loss, axis=0)
+
+    loss_min_i = np.where(avg_loss == loss_min)
+    loss_max_i = np.where(avg_loss == loss_max)
+
+    plt.annotate('Min Loss = {}'.format(loss_min),
+                 xy=(loss_min_i[0], loss_min),
+                 xytext=(loss_min_i[0] + 0.1, loss_min + 0.1),
+                 arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
+                 bbox=dict(boxstyle='round', fc="w"))
+
+    plt.annotate('Max Loss = {}'.format(loss_max),
+                 xy=(loss_max_i[0], loss_max),
+                 xytext=(loss_max_i[0] + 0.1, loss_max * 2),
+                 arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
+                 bbox=dict(boxstyle='round', fc="w"))
+
+    plt.annotate('Last Loss = {}'.format(avg_loss[-1]),
+                 xy=(len(avg_loss) - 1, avg_loss[-1]),
+                 xytext=((len(avg_loss) - 1) + 0.1, avg_loss[-1] + 0.1),
+                 arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
+                 bbox=dict(boxstyle='round', fc="w"))
+
+    plt.text(loss_min_i[0], loss_min + 1, str(loss_min))
+    plt.text(loss_max_i[0], loss_max + 1, str(loss_max))
+
     plt.xlabel("EPOCH")
     plt.ylabel("平均损失")
-    plt.title("训练损失")
+    plt.title("训练损失，预训练={}".format(config['global_params']['pretrained']))
     plt.legend()
 
     plt.show()

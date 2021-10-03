@@ -12,13 +12,13 @@ class BackBone(nn.Module):
         super(BackBone, self).__init__()
 
         if config['arch_type'] == 'resnet50':
-            deeplab = models.segmentation.deeplabv3_resnet50(pretrained=True)
+            deeplab = models.segmentation.deeplabv3_resnet50(pretrained=bool(config['pretrained']))
         elif config['arch_type'] == 'resnet101':
-            deeplab = models.segmentation.deeplabv3_resnet101(pretrained=True)
+            deeplab = models.segmentation.deeplabv3_resnet101(pretrained=bool(config['pretrained']))
         elif config['arch_type'] == 'mobilenet':
-            deeplab = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
+            deeplab = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=bool(config['pretrained']))
         else:
-            deeplab = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=True)
+            deeplab = models.segmentation.deeplabv3_mobilenet_v3_large(pretrained=bool(config['pretrained']))
 
         # 获取BackBone
         self.backbone = deeplab.backbone
