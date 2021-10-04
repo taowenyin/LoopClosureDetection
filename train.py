@@ -138,19 +138,19 @@ if __name__ == '__main__':
 
     plt.annotate('Min Loss = {}'.format(loss_min),
                  xy=(loss_min_i[0], loss_min),
-                 xytext=(loss_min_i[0] + 0.1, loss_min + 0.1),
+                 xytext=(loss_min_i[0] + 1, loss_min + 0.01),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
     plt.annotate('Max Loss = {}'.format(loss_max),
                  xy=(loss_max_i[0], loss_max),
-                 xytext=(loss_max_i[0] + 0.1, loss_max * 2),
+                 xytext=(loss_max_i[0] + 1, loss_max + 0.01),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
     plt.annotate('Last Loss = {}'.format(avg_loss[-1]),
                  xy=(len(avg_loss) - 1, avg_loss[-1]),
-                 xytext=((len(avg_loss) - 1) + 0.1, avg_loss[-1] + 0.1),
+                 xytext=((len(avg_loss) - 1) + 1, avg_loss[-1] + 0.01),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
