@@ -1,3 +1,4 @@
 .idea
+results/result_pics/*.png
 Datasets/Tokyo247/data
 Datasets/Tokyo247/centroids

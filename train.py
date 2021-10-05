@@ -24,7 +24,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_root_dir', type=str,
                         default='/mnt/Dataset/Mapillary_Street_Level_Sequences',
                         help='Root directory of dataset')
-    parser.add_argument('--nEpochs', type=int, default=2, help='number of epochs to train for')
+    parser.add_argument('--nEpochs', type=int, default=30, help='number of epochs to train for')
     parser.add_argument('--nocuda', action='store_true', help='If true, use CPU only. Else use GPU.')
     parser.add_argument('--threads', type=int, default=6, help='Number of threads for each data loader to use')
     parser.add_argument('--continuing', action='store_true',
@@ -138,29 +138,30 @@ if __name__ == '__main__':
 
     plt.annotate('Max Loss = {}'.format(format(loss_max, '0.4f')),
                  xy=(loss_max_i[0], loss_max),
-                 xytext=(loss_max_i[0] + 2, loss_max - 0.01),
+                 xytext=(loss_max_i[0] + 2, loss_max - 0.02),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
     plt.annotate('Min Loss = {}'.format(format(loss_min, '0.4f')),
                  xy=(loss_min_i[0], loss_min),
-                 xytext=(loss_min_i[0] - 8, loss_min + 0.01),
+                 xytext=(loss_min_i[0] - 8, loss_min - 0.02),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
     plt.annotate('Last Loss = {}'.format(format(avg_loss[-1], '0.4f')),
-                 xy=(len(avg_loss) - 5, avg_loss[-1]),
-                 xytext=((len(avg_loss) - 1) - 4, avg_loss[-1] + 0.02),
+                 xy=(len(avg_loss) - 1, avg_loss[-1]),
+                 xytext=((len(avg_loss) - 1) - 6, avg_loss[-1] + 0.02),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
     # 设置X、Y坐标的最大最小值
     plt.xlim([-1, 32])
-    plt.ylim([0, 0.35])
+    plt.ylim([0.2, 0.34])
     plt.xlabel("EPOCH")
     plt.ylabel("平均损失")
     plt.title("训练损失，预训练={}".format(config['global_params']['pretrained']))
     plt.legend()
+    plt.savefig('results/result_pics/Loss_Pre_{}.png'.format(config['global_params']['pretrained']))
 
     plt.show()
 
