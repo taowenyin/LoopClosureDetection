@@ -39,16 +39,16 @@ class ShuffleAttention(nn.Module):
         x_channel = self.avg_pool(x_0)  # 每个通道通过AVG Pool变为（1,1），Shape = (b * G, C // G // 2, 1, 1)
         x_channel = self.cweight * x_channel + self.cweight  # 计算通道注意力参数，Shape = (b * G, C // G // 2, 1, 1)
         # 执行通道注意力的点积操作
-        x_channel = x_0 * self.sigmoid(x_channel)
+        x_channel = x_0 * self.sigmoid(x_channel) # Shape = (b * G, C // G // 2, H, W)
 
         # 执行空间注意力
-        x_spatial = self.gn(x_1)  # bs*G,c//(2*G),h,w
-        x_spatial = self.sweight * x_spatial + self.sbias  # bs*G,c//(2*G),h,w
-        x_spatial = x_1 * self.sigmoid(x_spatial)  # bs*G,c//(2*G),h,w
+        x_spatial = self.gn(x_1)  # 对每一组进行Normalization，Shape = (B * G, C // G // 2, H, W)
+        x_spatial = self.sweight * x_spatial + self.sbias  # 计算空间注意力参数，Shape = (B * G, C // G // 2, H, W)
+        x_spatial = x_1 * self.sigmoid(x_spatial)  # Shape = (B * G, C // G // 2, H, W)
 
         # concatenate along channel axis
-        out = torch.cat([x_channel, x_spatial], dim=1)  # bs*G,c//G,h,w
-        out = out.contiguous().view(b, -1, h, w)
+        out = torch.cat([x_channel, x_spatial], dim=1)  # Shape = (B * G, C // G, H, W)
+        out = out.contiguous().view(b, -1, h, w) # 重新变为 Shape = (B, C, H, W)
 
         # channel shuffle
         out = self.channel_shuffle(out, 2)
