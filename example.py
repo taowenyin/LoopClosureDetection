@@ -24,6 +24,6 @@ if __name__ == '__main__':
     plt.title("三角函数图")
     plt.legend()
 
-    plt.savefig('results/result_pics/Loss_Pre_{}.png'.format('True'))
+    plt.savefig('results/checkpoints/Loss_Pre_{}.png'.format('True'))
 
     plt.show()

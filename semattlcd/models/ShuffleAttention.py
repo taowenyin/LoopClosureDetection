@@ -56,19 +56,16 @@ class ShuffleAttention(nn.Module):
 
 
 if __name__ == '__main__':
-    # input = torch.randn(50, 512, 7, 7)
-    # se = ShuffleAttention(channel=512, G=8)
-    # output = se(input)
-    # print(output.shape)
+    input = torch.randn(2, 4, 2, 2)
 
-    # m = nn.AdaptiveAvgPool2d(1)
-    # input = torch.randn(1, 64, 8, 9)
-    # output = m(input)
-    # print(output.shape)
+    print('==========================')
+    print(input)
+    print('==========================')
 
-    input = torch.randn(20, 6, 10, 10)
-    m = nn.GroupNorm(3, 6)
-    # m = nn.GroupNorm(6, 6)
-    # m = nn.GroupNorm(1, 6)
-    output = m(input)
-    print(output.shape)
+    x = input.reshape(2, 2, -1, 2, 2)
+    x = x.permute(0, 2, 1, 3, 4)
+    # flatten
+    x = x.reshape(2, -1, 2, 2)
+    print('==========================')
+    print(x)
+    print('==========================')
