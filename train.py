@@ -1,5 +1,6 @@
 import argparse
 import configparser
+import os.path
 import random
 import numpy as np
 
@@ -109,8 +110,12 @@ if __name__ == '__main__':
 
     # 保存Loss的路径
     save_loss_dir = join('results', 'loss_pics', datetime.now().strftime('%b%d_%H-%M-%S'))
+    if not os.path.exists(save_loss_dir):
+        os.makedirs(save_loss_dir)
     # 保存权重的路径
     save_weights_dir = join('results', 'checkpoints', datetime.now().strftime('%b%d_%H-%M-%S'))
+    if not os.path.exists(save_weights_dir):
+        os.makedirs(save_weights_dir)
 
     not_improved = 0
     best_score = 0
