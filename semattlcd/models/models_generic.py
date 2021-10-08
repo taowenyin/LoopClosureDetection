@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 from semattlcd.models.BackBone import BackBone
-from semattlcd.models.SemanticAttention import SemanticAttention
+from semattlcd.models.PoolingNet import PoolingNet
 
 
 def get_backend(config):
@@ -22,7 +22,7 @@ def get_model(encoder, encoder_dim, config):
     nn_model = nn.Module()
     nn_model.add_module('encoder', encoder)
 
-    pooling_net = SemanticAttention(encoder_dim, config)
+    pooling_net = PoolingNet(encoder_dim, config)
     nn_model.add_module('pool', pooling_net)
 
     return nn_model

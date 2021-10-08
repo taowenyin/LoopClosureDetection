@@ -6,9 +6,9 @@ import torch.nn.functional as F
 from semattlcd.models.ShuffleAttention import ShuffleAttention
 
 
-class SemanticAttention(nn.Module):
+class PoolingNet(nn.Module):
     def __init__(self, dim, config):
-        super(SemanticAttention, self).__init__()
+        super(PoolingNet, self).__init__()
 
         self.config = config
 
