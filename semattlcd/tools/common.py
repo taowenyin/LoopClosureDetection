@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os.path
 
 from os.path import join
 
@@ -62,6 +63,9 @@ def save_loss(avg_loss, path, config):
     plt.ylabel("平均损失")
     plt.title("训练损失，预训练={}".format(config['pretrained']))
     plt.legend()
+
+    if not os.path.exists(path):
+        os.makedirs(path)
 
     plt.savefig(join(path, 'Loss_Pre_{}.png'.format(config['pretrained'])))
 
