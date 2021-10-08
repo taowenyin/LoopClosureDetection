@@ -61,12 +61,17 @@ def save_loss(avg_loss, path, config):
     plt.ylim([0.2, 0.34])
     plt.xlabel("EPOCH")
     plt.ylabel("平均损失")
-    plt.title("训练损失，预训练={}".format(config['pretrained']))
+    plt.title("训练损失-P{}-A{}".format(
+        int(config.getboolean('pretrained')),
+        int(config.getboolean('attention'))))
     plt.legend()
 
     if not os.path.exists(path):
         os.makedirs(path)
 
-    plt.savefig(join(path, 'Loss_Pre_{}.png'.format(config['pretrained'])))
+    plt.savefig(join(path,
+                     'Loss_P{}_A{}.png'.format(
+                         int(config.getboolean('pretrained')),
+                         int(config.getboolean('attention')))))
 
     plt.show()
