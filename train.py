@@ -109,9 +109,9 @@ if __name__ == '__main__':
     print('===> Training model')
 
     # 保存Loss的路径
-    save_loss_dir = join('results', 'loss_pics', datetime.now().strftime('%Y-%m-%d_%H_%M_%S'))
+    save_loss_dir = join('results', 'loss_pics', datetime.now().strftime('%Y-%m-%d'))
     # 保存权重的路径
-    save_weights_dir = join('results', 'checkpoints', datetime.now().strftime('%Y-%m-%d_%H_%M_%S'))
+    save_weights_dir = join('results', 'checkpoints', datetime.now().strftime('%Y-%m-%d'))
 
     not_improved = 0
     best_score = 0

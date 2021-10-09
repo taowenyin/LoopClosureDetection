@@ -58,7 +58,7 @@ def save_loss(avg_loss, path, config):
 
     # 设置X、Y坐标的最大最小值
     plt.xlim([-1, 32])
-    plt.ylim([0.2, 0.34])
+    plt.ylim([0.1, 0.34])
     plt.xlabel("EPOCH")
     plt.ylabel("平均损失")
     plt.title("训练损失-P{}-A{}".format(
