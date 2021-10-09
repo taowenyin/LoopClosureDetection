@@ -17,6 +17,7 @@ from semattlcd.models.models_generic import get_model, get_backend
 from tqdm import trange, tqdm
 from datetime import datetime
 from semattlcd.tools.common import save_loss
+from semattlcd.train.val import val
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Semantic-Attention-LCD-train')
@@ -131,6 +132,7 @@ if __name__ == '__main__':
         # 执行验证程序
         if (epoch % int(config['train']['eval_every'])) == 0:
             tqdm.write('===> Running Eval')
+            val(validation_dataset, model, encoder_dim, device, opt, config, pbar_position=1)
 
     # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
     torch.cuda.empty_cache()
