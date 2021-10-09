@@ -132,7 +132,8 @@ if __name__ == '__main__':
         # 执行验证程序
         if (epoch % int(config['train']['eval_every'])) == 0:
             tqdm.write('===> Running Eval')
-            val(validation_dataset, model, encoder_dim, device, opt, config, pbar_position=1)
+            val(validation_dataset, model, config.getint('global_params', 'pca_dim'),
+                device, opt, config, pbar_position=1)
 
     # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
     torch.cuda.empty_cache()

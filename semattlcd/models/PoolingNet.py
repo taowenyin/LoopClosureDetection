@@ -12,17 +12,15 @@ class PoolingNet(nn.Module):
 
         self.config = config
 
-        pca_dim = math.ceil(dim * float(config['pca_rate']))
-
         if config.getboolean('attention'):
             if config['arch_type'] == 'mobilenet':
                 self.upsample = nn.Conv2d(dim, 256, kernel_size=(1, 1), stride=1, padding=0)
                 self.attention = ShuffleAttention(256, G=8)
                 dim = 256
 
-        self.pca_dim = pca_dim
         self.flatten = nn.Flatten(start_dim=1)
-        self.pca_conv = nn.Conv2d(dim, pca_dim, kernel_size=(1, 1), stride=1, padding=0)
+        self.pca_conv = nn.Conv2d(dim, config.getint('pca_dim'),
+                                  kernel_size=(1, 1), stride=1, padding=0)
 
     def forward(self, x):
         if self.config.getboolean('attention'):

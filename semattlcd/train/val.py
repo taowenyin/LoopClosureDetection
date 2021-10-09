@@ -8,14 +8,16 @@ from semattlcd.tools.datasets import input_transform
 from tqdm import trange, tqdm
 
 
-def val(eval_set, model, encoder_dim, device, opt, config, pbar_position=0):
+def val(eval_set, model, pca_dim, device, opt, config, pbar_position=0):
     if device.type == 'cuda':
         cuda = True
     else:
         cuda = False
 
     # 缩放图片后的大小
-    resize = (config.getint('train', 'image_resize_h'), config.getint('train', 'image_resize_w'))
+    image_resize_h = config.getint('train', 'image_resize_h')
+    image_resize_w = config.getint('train', 'image_resize_w')
+    resize = (image_resize_h, image_resize_w)
 
     eval_set_queries = ImagesFromList(eval_set.qImages, transform=input_transform(resize))
     eval_set_dbs = ImagesFromList(eval_set.dbImages, transform=input_transform(resize))
@@ -31,7 +33,7 @@ def val(eval_set, model, encoder_dim, device, opt, config, pbar_position=0):
 
     with torch.no_grad():
         tqdm.write('====> Extracting Features')
-        pool_size = encoder_dim
+        pool_size = pca_dim * (image_resize_h // 4) * (image_resize_w // 4)
 
         qFeat = np.empty((len(eval_set_queries), pool_size), dtype=np.float32)
         dbFeat = np.empty((len(eval_set_dbs), pool_size), dtype=np.float32)
@@ -53,3 +55,13 @@ def val(eval_set, model, encoder_dim, device, opt, config, pbar_position=0):
     faiss_index = faiss.IndexFlatL2(pool_size)
     # noinspection PyArgumentList
     faiss_index.add(dbFeat)
+
+    tqdm.write('====> Calculating recall @ N')
+    n_values = [1, 5, 10, 20, 50, 100]
+
+    _, predictions = faiss_index.search(qFeat, max(n_values))
+
+    # for each query get those within threshold distance
+    gt = eval_set.all_pos_indices
+
+    print('xx')
