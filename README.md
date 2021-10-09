@@ -35,3 +35,9 @@
 [Mapillary Street-level Sequences](https://github.com/mapillary/mapillary_sls)
 
 [Patch-NetVLAD论文阅读](https://vincentqin.tech/posts/patch-netvlad/)
+
+# 消融实验
+
+1. Attention的添加
+2. BackBone的选择
+3. 预训练模型的使用

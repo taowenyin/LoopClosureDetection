@@ -70,7 +70,8 @@ def save_loss(avg_loss, path, config):
         os.makedirs(path)
 
     plt.savefig(join(path,
-                     'Loss_P{}_A{}.png'.format(
+                     'Loss_{}_P{}_A{}.png'.format(
+                         config['global_params']['arch_type'],
                          int(config.getboolean('pretrained')),
                          int(config.getboolean('attention')))))
 
