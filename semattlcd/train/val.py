@@ -8,7 +8,7 @@ from semattlcd.tools.datasets import input_transform
 from tqdm import trange, tqdm
 
 
-def val(eval_set, model, pca_dim, device, opt, config, pbar_position=0):
+def val(eval_set, model, pca_dim, device, config, pbar_position=0):
     if device.type == 'cuda':
         cuda = True
     else:
@@ -57,7 +57,7 @@ def val(eval_set, model, pca_dim, device, opt, config, pbar_position=0):
     faiss_index.add(dbFeat)
 
     tqdm.write('====> Calculating recall @ N')
-    n_values = [1, 5, 10, 20, 50, 100]
+    n_values = list(map(int, config.get('global_params', 'top_n').split(',')))
 
     # 通过欧氏距离获得前100名的相似对象的索引
     _, predictions = faiss_index.search(qFeat, max(n_values))

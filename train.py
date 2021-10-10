@@ -16,7 +16,7 @@ from semattlcd.train.train_epoch import train_epoch
 from semattlcd.models.models_generic import get_model, get_backend
 from tqdm import trange, tqdm
 from datetime import datetime
-from semattlcd.tools.common import save_loss, save_checkpoint
+from semattlcd.tools.common import draw_train_loss, draw_validation_recall, save_checkpoint
 from semattlcd.train.val import val
 
 if __name__ == '__main__':
@@ -112,20 +112,29 @@ if __name__ == '__main__':
     print('===> Training model')
 
     # 保存Loss的路径
-    save_loss_dir = join('results', 'loss_pics', datetime.now().strftime('%Y-%m-%d'))
+    train_loss_dir = join('results', 'train_loss', datetime.now().strftime('%Y-%m-%d'))
     # 保存权重的路径
     save_weights_dir = join('results', 'checkpoints', datetime.now().strftime('%Y-%m-%d'))
+    # 验证集recall的路径
+    val_recall_dir = join('results', 'val_recall', datetime.now().strftime('%Y-%m-%d'))
 
     not_improved = 0
     best_score = 0
     avg_loss = []
+    val_recalls = []
+    val_recalls_1 = []
+    val_recalls_5 = []
+    val_recalls_10 = []
+    val_recalls_20 = []
+    val_recalls_50 = []
+    val_recalls_100 = []
 
     for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
         tqdm.write('===> Running Train')
         # 执行训练模型
-        avg_loss_epoch = train_epoch(train_dataset, model, optimizer, criterion,
-                                     encoder_dim, device, epoch, opt, config)
-        avg_loss.append(avg_loss_epoch)
+        # avg_loss_epoch = train_epoch(train_dataset, model, optimizer, criterion,
+        #                              encoder_dim, device, epoch, opt, config)
+        # avg_loss.append(avg_loss_epoch)
 
         # 更新学习率
         if scheduler is not None:
@@ -136,7 +145,16 @@ if __name__ == '__main__':
             tqdm.write('===> Running Eval')
             # 执行验证模型
             recalls = val(validation_dataset, model, config.getint('global_params', 'pca_dim'),
-                          device, opt, config, pbar_position=1)
+                          device, config, pbar_position=1)
+
+            # 保存1, 5, 10, 20, 50, 100正确率
+            val_recalls_1.append(recalls[1])
+            val_recalls_5.append(recalls[5])
+            val_recalls_10.append(recalls[10])
+            val_recalls_20.append(recalls[20])
+            val_recalls_50.append(recalls[50])
+            val_recalls_100.append(recalls[100])
+
             # 判断最佳模型
             is_best = recalls[5] > best_score
             if is_best:
@@ -159,9 +177,17 @@ if __name__ == '__main__':
                 print('Performance did not improve for', config['train']['patience'], 'epochs. Stopping.')
                 break
 
+    val_recalls.append(val_recalls_1)
+    val_recalls.append(val_recalls_5)
+    val_recalls.append(val_recalls_10)
+    val_recalls.append(val_recalls_20)
+    val_recalls.append(val_recalls_50)
+    val_recalls.append(val_recalls_100)
+
     # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear the memory after runs
     torch.cuda.empty_cache()
 
-    save_loss(avg_loss, save_loss_dir, config['global_params'])
+    draw_train_loss(avg_loss, train_loss_dir, config['global_params'])
+    draw_validation_recall(val_recalls, val_recall_dir, config['global_params'])
 
     print('Done')

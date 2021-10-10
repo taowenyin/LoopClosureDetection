@@ -39,7 +39,61 @@ def save_checkpoint(state, opt, path, is_best_sofar):
         shutil.copyfile(model_out_path, join(path, 'model_best.pth.tar'))
 
 
-def save_loss(avg_loss, path, config):
+def draw_validation_recall(recall, path, config):
+    top_n = config.get('top_n').split(',')
+
+    for i in range(len(recall)):
+        recall_item = recall[i]
+
+        plt.plot(np.arange(len(recall_item)), recall_item + i, label='N={}'.format(top_n[i]))
+
+        recall_min = np.amin(recall_item, axis=0)
+        recall_max = np.amax(recall_item, axis=0)
+
+        recall_min_i = np.where(recall_item == recall_min)
+        recall_max_i = np.where(recall_item == recall_max)
+
+        plt.annotate('Max Recall = {}'.format(format(recall_max, '0.4f')),
+                     xy=(recall_max_i[0], recall_max),
+                     xytext=(recall_max_i[0] + 2, recall_max - 0.02),
+                     arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
+                     bbox=dict(boxstyle='round', fc="w"))
+
+        plt.annotate('Min Loss = {}'.format(format(recall_min, '0.4f')),
+                     xy=(recall_min_i[0], recall_min),
+                     xytext=(recall_min_i[0] - 8, recall_min - 0.02),
+                     arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
+                     bbox=dict(boxstyle='round', fc="w"))
+
+        plt.annotate('Last Loss = {}'.format(format(recall_item[-1], '0.4f')),
+                     xy=(len(recall_item) - 1, recall_item[-1]),
+                     xytext=((len(recall_item) - 1) - 6, recall_item[-1] + 0.02),
+                     arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
+                     bbox=dict(boxstyle='round', fc="w"))
+
+
+    plt.xlim([-1, 32])
+    plt.ylim([0, 7])
+    plt.xlabel("EPOCH")
+    plt.ylabel("验证集的Recall")
+    plt.title("验证集的Recall-P{}-A{}".format(
+        int(config.getboolean('pretrained')),
+        int(config.getboolean('attention'))))
+    plt.legend()
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    plt.savefig(join(path,
+                     'Recall_{}_P{}_A{}.png'.format(
+                         config['global_params']['arch_type'],
+                         int(config.getboolean('pretrained')),
+                         int(config.getboolean('attention')))))
+
+    plt.show()
+
+
+def draw_train_loss(avg_loss, path, config):
     plt.plot(np.arange(len(avg_loss)), avg_loss, label='平均损失')
 
     loss_min = np.amin(avg_loss, axis=0)
