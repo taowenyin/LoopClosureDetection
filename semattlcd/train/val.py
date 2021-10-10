@@ -61,7 +61,20 @@ def val(eval_set, model, pca_dim, device, opt, config, pbar_position=0):
 
     _, predictions = faiss_index.search(qFeat, max(n_values))
 
-    # for each query get those within threshold distance
+    # 获得每个Query的正例索引
     gt = eval_set.all_pos_indices
 
-    print('xx')
+    correct_at_n = np.zeros(len(n_values))
+    for qIx, pred in enumerate(predictions):
+        for i, n in enumerate(n_values):
+            # if in top N then also in top NN, where NN > N
+            if np.any(np.in1d(pred[:n], gt[qIx])):
+                correct_at_n[i:] += 1
+                break
+    recall_at_n = correct_at_n / len(eval_set.qIdx)
+
+    all_recalls = {}  # make dict for output
+    for i, n in enumerate(n_values):
+        all_recalls[n] = recall_at_n[i]
+
+    return all_recalls

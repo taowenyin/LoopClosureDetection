@@ -16,7 +16,7 @@ from semattlcd.train.train_epoch import train_epoch
 from semattlcd.models.models_generic import get_model, get_backend
 from tqdm import trange, tqdm
 from datetime import datetime
-from semattlcd.tools.common import save_loss
+from semattlcd.tools.common import save_loss, save_checkpoint
 from semattlcd.train.val import val
 
 if __name__ == '__main__':
@@ -29,6 +29,8 @@ if __name__ == '__main__':
                         help='Root directory of dataset')
     parser.add_argument('--nEpochs', type=int, default=30, help='number of epochs to train for')
     parser.add_argument('--nocuda', action='store_true', help='If true, use CPU only. Else use GPU.')
+    parser.add_argument('--save_every_epoch', action='store_true',
+                        help='Flag to set a separate checkpoint file for each new epoch')
     parser.add_argument('--threads', type=int, default=6, help='Number of threads for each data loader to use')
     parser.add_argument('--continuing', action='store_true',
                         help='If true, started training earlier and continuing. Else retrain.')
@@ -120,7 +122,7 @@ if __name__ == '__main__':
 
     for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
         tqdm.write('===> Running Train')
-
+        # 执行训练模型
         avg_loss_epoch = train_epoch(train_dataset, model, optimizer, criterion,
                                      encoder_dim, device, epoch, opt, config)
         avg_loss.append(avg_loss_epoch)
@@ -132,8 +134,31 @@ if __name__ == '__main__':
         # 执行验证程序
         if (epoch % int(config['train']['eval_every'])) == 0:
             tqdm.write('===> Running Eval')
-            val(validation_dataset, model, config.getint('global_params', 'pca_dim'),
-                device, opt, config, pbar_position=1)
+            # 执行验证模型
+            recalls = val(validation_dataset, model, config.getint('global_params', 'pca_dim'),
+                          device, opt, config, pbar_position=1)
+            # 判断最佳模型
+            is_best = recalls[5] > best_score
+            if is_best:
+                not_improved = 0
+                best_score = recalls[5]
+            else:
+                not_improved += 1
+
+            save_checkpoint({
+                'epoch': epoch,
+                'state_dict': model.state_dict(),
+                'recalls': recalls,
+                'best_score': best_score,
+                'not_improved': not_improved,
+                'optimizer': optimizer.state_dict()
+            }, opt, save_weights_dir, is_best)
+
+            if int(config['train']['patience']) > 0 and \
+                    not_improved > (int(config['train']['patience']) / int(config['train']['eval_every'])):
+                print('Performance did not improve for', config['train']['patience'], 'epochs. Stopping.')
+                break
+
 
     # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
     torch.cuda.empty_cache()

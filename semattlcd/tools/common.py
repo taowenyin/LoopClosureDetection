@@ -1,6 +1,8 @@
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import os.path
+import shutil
 
 from os.path import join
 
@@ -25,8 +27,16 @@ def human_bytes(B):
         return '{0:.2f} TB'.format(B/TB)
 
 
-def save_checkpoint():
-    print('xxx')
+def save_checkpoint(state, opt, path, is_best_sofar):
+    if opt.save_every_epoch:
+        model_out_path = join(path, 'checkpoint_epoch' + str(state['epoch']) + '.pth.tar')
+    else:
+        model_out_path = join(path, 'checkpoint.pth.tar')
+    torch.save(state, model_out_path)
+
+    # 保存最佳模型
+    if is_best_sofar:
+        shutil.copyfile(model_out_path, join(path, 'model_best.pth.tar'))
 
 
 def save_loss(avg_loss, path, config):
