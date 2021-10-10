@@ -59,6 +59,7 @@ def val(eval_set, model, pca_dim, device, opt, config, pbar_position=0):
     tqdm.write('====> Calculating recall @ N')
     n_values = [1, 5, 10, 20, 50, 100]
 
+    # 通过欧氏距离获得前100名的相似对象的索引
     _, predictions = faiss_index.search(qFeat, max(n_values))
 
     # 获得每个Query的正例索引
@@ -68,9 +69,12 @@ def val(eval_set, model, pca_dim, device, opt, config, pbar_position=0):
     for qIx, pred in enumerate(predictions):
         for i, n in enumerate(n_values):
             # if in top N then also in top NN, where NN > N
+            # 计算不同Top N的预测准确的数量
             if np.any(np.in1d(pred[:n], gt[qIx])):
                 correct_at_n[i:] += 1
                 break
+
+    # 计算每个N的正确数量比例
     recall_at_n = correct_at_n / len(eval_set.qIdx)
 
     all_recalls = {}  # make dict for output

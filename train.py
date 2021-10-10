@@ -159,8 +159,7 @@ if __name__ == '__main__':
                 print('Performance did not improve for', config['train']['patience'], 'epochs. Stopping.')
                 break
 
-
-    # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear thes
+    # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear the memory after runs
     torch.cuda.empty_cache()
 
     save_loss(avg_loss, save_loss_dir, config['global_params'])
