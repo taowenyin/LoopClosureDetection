@@ -63,7 +63,7 @@ def draw_validation_recall(recall, path, config):
     top_n = config.get('top_n').split(',')
 
     for i in range(len(recall)):
-        recall_item = recall[i]
+        recall_item = np.array(recall[i])
 
         plt.plot(np.arange(len(recall_item)), recall_item + i, label='N={}'.format(top_n[i]))
 
