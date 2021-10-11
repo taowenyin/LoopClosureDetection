@@ -28,6 +28,10 @@ def human_bytes(B):
 
 
 def save_checkpoint(state, opt, path, is_best_sofar):
+    # 创建没有创建的文件夹
+    if not os.path.exists(path):
+        os.makedirs(path)
+
     if opt.save_every_epoch:
         model_out_path = join(path, 'checkpoint_epoch' + str(state['epoch']) + '.pth.tar')
     else:
