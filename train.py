@@ -132,9 +132,9 @@ if __name__ == '__main__':
     for epoch in trange(1, opt.nEpochs + 1, desc='Epoch number'.rjust(15), position=0):
         tqdm.write('===> Running Train')
         # 执行训练模型
-        # avg_loss_epoch = train_epoch(train_dataset, model, optimizer, criterion,
-        #                              encoder_dim, device, epoch, opt, config)
-        # avg_loss.append(avg_loss_epoch)
+        avg_loss_epoch = train_epoch(train_dataset, model, optimizer, criterion,
+                                     encoder_dim, device, epoch, opt, config)
+        avg_loss.append(avg_loss_epoch)
 
         # 更新学习率
         if scheduler is not None:
