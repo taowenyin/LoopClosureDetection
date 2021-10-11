@@ -27,20 +27,36 @@ def human_bytes(B):
         return '{0:.2f} TB'.format(B/TB)
 
 
-def save_checkpoint(state, opt, path, is_best_sofar):
+def save_checkpoint(state, config, opt, path, is_best_sofar):
     # 创建没有创建的文件夹
     if not os.path.exists(path):
         os.makedirs(path)
 
     if opt.save_every_epoch:
-        model_out_path = join(path, 'checkpoint_epoch' + str(state['epoch']) + '.pth.tar')
+        model_out_path = join(path,
+                              '{}_P{}_A{}_checkpoint_epoch{}.pth.tar'.format(
+                                  str(config['arch_type']),
+                                  int(config.getboolean('pretrained')),
+                                  int(config.getboolean('attention')),
+                                  str(state['epoch'])))
     else:
-        model_out_path = join(path, 'checkpoint.pth.tar')
+        model_out_path = join(path,
+                              '{}_P{}_A{}_checkpoint.pth.tar'.format(
+                                  str(config['arch_type']),
+                                  int(config.getboolean('pretrained')),
+                                  int(config.getboolean('attention'))
+                              ))
     torch.save(state, model_out_path)
 
     # 保存最佳模型
     if is_best_sofar:
-        shutil.copyfile(model_out_path, join(path, 'model_best.pth.tar'))
+        shutil.copyfile(model_out_path,
+                        join(path,
+                             '{}_P{}_A{}_model_best.pth.tar'.format(
+                                 str(config['arch_type']),
+                                 int(config.getboolean('pretrained')),
+                                 int(config.getboolean('attention'))
+                             )))
 
 
 def draw_validation_recall(recall, path, config):
@@ -90,7 +106,7 @@ def draw_validation_recall(recall, path, config):
 
     plt.savefig(join(path,
                      'Recall_{}_P{}_A{}.png'.format(
-                         config['global_params']['arch_type'],
+                         str(config['arch_type']),
                          int(config.getboolean('pretrained')),
                          int(config.getboolean('attention')))))
 
@@ -139,7 +155,7 @@ def draw_train_loss(avg_loss, path, config):
 
     plt.savefig(join(path,
                      'Loss_{}_P{}_A{}.png'.format(
-                         config['global_params']['arch_type'],
+                         str(config['arch_type']),
                          int(config.getboolean('pretrained')),
                          int(config.getboolean('attention')))))
 

@@ -170,7 +170,7 @@ if __name__ == '__main__':
                 'best_score': best_score,
                 'not_improved': not_improved,
                 'optimizer': optimizer.state_dict()
-            }, opt, save_weights_dir, is_best)
+            }, config['global_params'], opt, save_weights_dir, is_best)
 
             if int(config['train']['patience']) > 0 and \
                     not_improved > (int(config['train']['patience']) / int(config['train']['eval_every'])):
