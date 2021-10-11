@@ -184,10 +184,11 @@ if __name__ == '__main__':
     val_recalls.append(val_recalls_50)
     val_recalls.append(val_recalls_100)
 
-    # garbage clean GPU memory, a bug can occur when Pytorch doesn't automatically clear the memory after runs
     torch.cuda.empty_cache()
 
+    # 绘制训练误差
     draw_train_loss(avg_loss, train_loss_dir, config['global_params'])
+    # 绘制验证的召回
     draw_validation_recall(val_recalls, val_recall_dir, config['global_params'])
 
     print('Done')
