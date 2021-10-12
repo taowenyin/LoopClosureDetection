@@ -77,20 +77,20 @@ def draw_validation_recall(recall, path, config):
         recall_max_i = np.where(recall_item == recall_max)
 
         plt.annotate('Max Recall = {}'.format(format(recall_max, '0.4f')),
-                     xy=(recall_max_i[0][-1], recall_max),
-                     xytext=(recall_max_i[0][-1] + 2, recall_max - 0.02),
+                     xy=(recall_max_i[0][-1], recall_max + i),
+                     xytext=(recall_max_i[0][-1] + 1, recall_max + 0.5 + i),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
         plt.annotate('Min Loss = {}'.format(format(recall_min, '0.4f')),
-                     xy=(recall_min_i[0][-1], recall_min),
-                     xytext=(recall_min_i[0][-1] - 8, recall_min - 0.02),
+                     xy=(recall_min_i[0][-1], recall_min + i),
+                     xytext=(recall_min_i[0][-1] + 1, recall_min + 0.5 + i),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
         plt.annotate('Last Loss = {}'.format(format(recall_item[-1], '0.4f')),
-                     xy=(len(recall_item) - 1, recall_item[-1]),
-                     xytext=((len(recall_item) - 1) - 6, recall_item[-1] + 0.02),
+                     xy=(len(recall_item) - 1, recall_item[-1] + i),
+                     xytext=((len(recall_item) - 1) + 1, recall_item[-1] + 0.5 + i),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 

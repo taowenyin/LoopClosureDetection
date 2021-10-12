@@ -172,10 +172,10 @@ if __name__ == '__main__':
                 'optimizer': optimizer.state_dict()
             }, config['global_params'], opt, save_weights_dir, is_best)
 
-            if int(config['train']['patience']) > 0 and \
-                    not_improved > (int(config['train']['patience']) / int(config['train']['eval_every'])):
-                print('Performance did not improve for', config['train']['patience'], 'epochs. Stopping.')
-                break
+            # if int(config['train']['patience']) > 0 and \
+            #         not_improved > (int(config['train']['patience']) / int(config['train']['eval_every'])):
+            #     print('Performance did not improve for', config['train']['patience'], 'epochs. Stopping.')
+            #     break
 
     val_recalls.append(val_recalls_1)
     val_recalls.append(val_recalls_5)
