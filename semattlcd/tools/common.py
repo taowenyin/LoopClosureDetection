@@ -60,6 +60,8 @@ def save_checkpoint(state, config, opt, path, is_best_sofar):
 
 
 def draw_validation_recall(recall, path, config):
+    plt.figure()
+
     top_n = config.get('top_n').split(',')
 
     recall = np.array(recall)
@@ -75,14 +77,14 @@ def draw_validation_recall(recall, path, config):
         recall_max_i = np.where(recall_item == recall_max)
 
         plt.annotate('Max Recall = {}'.format(format(recall_max, '0.4f')),
-                     xy=(recall_max_i[0], recall_max),
-                     xytext=(recall_max_i[0] + 2, recall_max - 0.02),
+                     xy=(recall_max_i[0][-1], recall_max),
+                     xytext=(recall_max_i[0][-1] + 2, recall_max - 0.02),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
         plt.annotate('Min Loss = {}'.format(format(recall_min, '0.4f')),
-                     xy=(recall_min_i[0], recall_min),
-                     xytext=(recall_min_i[0] - 8, recall_min - 0.02),
+                     xy=(recall_min_i[0][-1], recall_min),
+                     xytext=(recall_min_i[0][-1] - 8, recall_min - 0.02),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
@@ -91,7 +93,6 @@ def draw_validation_recall(recall, path, config):
                      xytext=((len(recall_item) - 1) - 6, recall_item[-1] + 0.02),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
-
 
     plt.xlim([-1, 32])
     plt.ylim([0, 7])
@@ -115,6 +116,8 @@ def draw_validation_recall(recall, path, config):
 
 
 def draw_train_loss(avg_loss, path, config):
+    plt.figure()
+
     plt.plot(np.arange(len(avg_loss)), avg_loss, label='平均损失')
 
     loss_min = np.amin(avg_loss, axis=0)
@@ -124,13 +127,13 @@ def draw_train_loss(avg_loss, path, config):
     loss_max_i = np.where(avg_loss == loss_max)
 
     plt.annotate('Max Loss = {}'.format(format(loss_max, '0.4f')),
-                 xy=(loss_max_i[0], loss_max),
+                 xy=(loss_max_i[0][-1], loss_max),
                  xytext=(loss_max_i[0] + 2, loss_max - 0.02),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
 
     plt.annotate('Min Loss = {}'.format(format(loss_min, '0.4f')),
-                 xy=(loss_min_i[0], loss_min),
+                 xy=(loss_min_i[0][-1], loss_min),
                  xytext=(loss_min_i[0] - 8, loss_min - 0.02),
                  arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                  bbox=dict(boxstyle='round', fc="w"))
