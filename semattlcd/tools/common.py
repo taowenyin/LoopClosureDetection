@@ -66,9 +66,10 @@ def draw_validation_recall(recall, path, config):
 
     recall = np.array(recall)
     for i in range(len(recall)):
-        recall_item = recall[i]
+        # 增加Y轴偏移
+        recall_item = recall[i] + i * 0.5
 
-        plt.plot(np.arange(len(recall_item)), recall_item + i, label='N={}'.format(top_n[i]))
+        plt.plot(np.arange(len(recall_item)), recall_item, label='N={}'.format(top_n[i]))
 
         recall_min = np.amin(recall_item, axis=0)
         recall_max = np.amax(recall_item, axis=0)
@@ -76,26 +77,26 @@ def draw_validation_recall(recall, path, config):
         recall_min_i = np.where(recall_item == recall_min)
         recall_max_i = np.where(recall_item == recall_max)
 
-        plt.annotate('Max Recall = {}'.format(format(recall_max, '0.4f')),
-                     xy=(recall_max_i[0][-1], recall_max + i),
-                     xytext=(recall_max_i[0][-1] + 1, recall_max + 0.5 + i),
+        plt.annotate('Max Recall = {}'.format(format(recall_max - i * 0.5, '0.4f')),
+                     xy=(recall_max_i[0][-1], recall_max),
+                     xytext=(recall_max_i[0][-1] + 1, recall_max + 0.2),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
-        plt.annotate('Min Loss = {}'.format(format(recall_min, '0.4f')),
-                     xy=(recall_min_i[0][-1], recall_min + i),
-                     xytext=(recall_min_i[0][-1] + 1, recall_min + 0.5 + i),
+        plt.annotate('Min Recall = {}'.format(format(recall_min - i * 0.5, '0.4f')),
+                     xy=(recall_min_i[0][-1], recall_min),
+                     xytext=(recall_min_i[0][-1] - 4, recall_min + 0.2),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
-        plt.annotate('Last Loss = {}'.format(format(recall_item[-1], '0.4f')),
-                     xy=(len(recall_item) - 1, recall_item[-1] + i),
-                     xytext=((len(recall_item) - 1) + 1, recall_item[-1] + 0.5 + i),
+        plt.annotate('Last Recall = {}'.format(format(recall_item[-1] - i * 0.5, '0.4f')),
+                     xy=(len(recall_item) - 1, recall_item[-1]),
+                     xytext=((len(recall_item) - 1) - 2, recall_item[-1] + 0.2),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
     plt.xlim([-1, 32])
-    plt.ylim([0, 7])
+    plt.ylim([0, 3.6])
     plt.xlabel("EPOCH")
     plt.ylabel("验证集的Recall")
     plt.title("验证集的Recall-P{}-A{}".format(
