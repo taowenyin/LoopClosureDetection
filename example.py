@@ -11,9 +11,13 @@ from torchvision import models
 from torchvision.models._utils import IntermediateLayerGetter
 from typing import List
 from datetime import datetime
+from semattlcd.tools.common import calculate_running_time
 
 
 if __name__ == '__main__':
+
+    start = datetime.now()
+
     # recall = [
     #     [0.1038961, 0.11038961, 0.12987013, 0.12987013, 0.11688312, 0.12337662, 0.11688312, 0.12337662, 0.1038961,  0.09090909, 0.0974026,  0.1038961, 0.09090909, 0.09090909],
     #     [0.21428571, 0.20779221, 0.23376623, 0.23376623, 0.19480519, 0.19480519, 0.21428571, 0.19480519, 0.19480519, 0.18181818, 0.16883117, 0.16883117, 0.16883117, 0.16233766],
@@ -124,3 +128,9 @@ if __name__ == '__main__':
     plt.legend()
 
     plt.show()
+
+    end = datetime.now()
+
+    running_time = end - start
+
+    print(calculate_running_time(running_time.microseconds))

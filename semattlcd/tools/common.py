@@ -85,13 +85,13 @@ def draw_validation_recall(recall, path, config):
 
         plt.annotate('Min Recall = {}'.format(format(recall_min - i * 0.5, '0.4f')),
                      xy=(recall_min_i[0][-1], recall_min),
-                     xytext=(recall_min_i[0][-1] - 4, recall_min + 0.2),
+                     xytext=(recall_min_i[0][-1] - 8, recall_min + 0.2),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
         plt.annotate('Last Recall = {}'.format(format(recall_item[-1] - i * 0.5, '0.4f')),
                      xy=(len(recall_item) - 1, recall_item[-1]),
-                     xytext=((len(recall_item) - 1) - 2, recall_item[-1] + 0.2),
+                     xytext=((len(recall_item) - 1) - 4, recall_item[-1] + 0.2),
                      arrowprops=dict(arrowstyle='->', connectionstyle='angle3, angleA=0, angleB=90'),
                      bbox=dict(boxstyle='round', fc="w"))
 
@@ -165,3 +165,15 @@ def draw_train_loss(avg_loss, path, config):
                          int(config.getboolean('attention')))))
 
     plt.show()
+
+
+def calculate_running_time(delta_microseconds):
+    nanoseconds = delta_microseconds % 1000
+    microseconds = delta_microseconds // 1000 % 1000
+    seconds = delta_microseconds // 1000 // 1000 % 60
+    minutes = delta_microseconds // 1000 // 1000 // 60 % 60
+    hours = delta_microseconds // 1000 // 1000 // 60 // 60
+
+    running_time = '{}:{}:{}:{}:{}'.format(hours, minutes, seconds, microseconds, nanoseconds)
+
+    return running_time

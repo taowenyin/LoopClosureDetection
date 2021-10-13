@@ -16,7 +16,7 @@ from semattlcd.train.train_epoch import train_epoch
 from semattlcd.models.models_generic import get_model, get_backend
 from tqdm import trange, tqdm
 from datetime import datetime
-from semattlcd.tools.common import draw_train_loss, draw_validation_recall, save_checkpoint
+from semattlcd.tools.common import draw_train_loss, draw_validation_recall, save_checkpoint, calculate_running_time
 from semattlcd.train.val import val
 
 if __name__ == '__main__':
@@ -34,6 +34,9 @@ if __name__ == '__main__':
     parser.add_argument('--threads', type=int, default=6, help='Number of threads for each data loader to use')
     parser.add_argument('--continuing', action='store_true',
                         help='If true, started training earlier and continuing. Else retrain.')
+
+    # 程序开始时间
+    program_start = datetime.now()
 
     opt = parser.parse_args()
 
@@ -191,4 +194,10 @@ if __name__ == '__main__':
     # 绘制验证的召回
     draw_validation_recall(val_recalls, val_recall_dir, config['global_params'])
 
-    print('Done')
+    # 程序结束时间
+    program_end = datetime.now()
+
+    # 计算程序运行时间
+    running_time = program_end - program_start
+
+    print('Done, Running Time: {}'.format(calculate_running_time(running_time.microseconds)))
