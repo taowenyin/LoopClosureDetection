@@ -5,7 +5,6 @@ import configparser
 import h5py
 import torch.optim as optim
 import torch.nn as nn
-import torch.distributed as dist
 
 from dataset.mapillary_sls.MSLS import MSLS
 from configparser import ConfigParser
@@ -20,24 +19,13 @@ from datetime import datetime
 from torch.optim import Optimizer
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel
-
-
-def reduce_mean(value, n_procs):
-    """
-    收集GPU上的数据，然后求平均
-    :param value:
-    :param n_procs:
-    :return:
-    """
-    res = value.clone()
-    dist.all_reduce(res, op=dist.ReduceOp.SUM)
-    res /= n_procs
-    return res
+from tools.parallel import reduce_mean
+from torch.cuda.amp import GradScaler, autocast
 
 
 def train_epoch(rank, world_size, train_dataset: MSLS, model: DistributedDataParallel, optimizer: Optimizer,
                 criterion: nn.TripletMarginLoss, encoding_dim: int, epoch_num: int, config: ConfigParser,
-                writer: SummaryWriter):
+                opt, writer: SummaryWriter):
     """
     一次训练的过程
 
@@ -50,10 +38,14 @@ def train_epoch(rank, world_size, train_dataset: MSLS, model: DistributedDataPar
     :param encoding_dim: Backbone模型的输出维度
     :param epoch_num: 第几个周期
     :param config: 训练的配置参数
+    :param opt: 参数信息
     :param writer: Tensorboard的写入对象
     """
 
     train_dataset.new_epoch()
+
+    # 使用自动混合精度提高效率
+    scaler = GradScaler(enabled=opt.amp)
 
     # 每个训练周期的损失
     epoch_loss = 0
@@ -84,7 +76,8 @@ def train_epoch(rank, world_size, train_dataset: MSLS, model: DistributedDataPar
         training_data_sampler = DistributedSampler(train_dataset)
         # 训练数据集的载入器，由于采用多卡训练，因此Shuffle需要设置为False，而Shuffle的工作由DistributedSampler完成
         training_data_loader = DataLoader(dataset=train_dataset, batch_size=config['train'].getint('batch_size'),
-                                          shuffle=False, collate_fn=MSLS.collate_fn, sampler=training_data_sampler)
+                                          shuffle=False, collate_fn=MSLS.collate_fn, sampler=training_data_sampler,
+                                          num_workers=world_size, pin_memory=True)
 
         # 进入训练模式
         model.train()
@@ -112,70 +105,75 @@ def train_epoch(rank, world_size, train_dataset: MSLS, model: DistributedDataPar
             data_input = torch.cat([query, positives, negatives])
             data_input = data_input.to(rank)
 
-            # 对数据使用BackBone提取图像特征
-            data_encoding = model.module.encoder(data_input)
-            # 经过池化后的数据
-            pooling_data = model.module.pool(data_encoding)
+            with autocast(enabled=opt.amp):
+                # 对数据使用BackBone提取图像特征
+                data_encoding = model.module.encoder(data_input)
+                # 经过池化后的数据
+                pooling_data = model.module.pool(data_encoding)
 
+                patch_loss = 0
+                if config['train']['pooling'].lower() == 'patchnetvlad':
+                    # =======================================
+                    # 计算Patch VLAD特征的损失
+                    # =======================================
+                    patch_poolings = pooling_data[0]
+                    # 读取每个Patch Pooling
+                    for i in range(len(patch_poolings)):
+                        patch_pooling = patch_poolings[i]
+                        patch_pooling_q, patch_pooling_p, patch_pooling_n = torch.split(patch_pooling, [B, B, neg_size])
+                        loss_i = 0
+                        for i, neg_count in enumerate(neg_counts):
+                            for n in range(neg_count):
+                                neg_ix = (torch.sum(neg_counts[:i]) + n).item()
+                                loss = criterion(patch_pooling_q[i: i + 1],
+                                                 patch_pooling_p[i: i + 1],
+                                                 patch_pooling_n[neg_ix:neg_ix + 1])
+                                loss_i += loss
+                        # 计算每个Patch的平均Loss
+                        patch_loss += (loss_i / neg_size)
+
+                    # 计算所有Patch Size的平均Loss
+                    patch_loss = (patch_loss / len(patch_poolings))
+
+                    # 清空内存
+                    del patch_pooling_q, patch_pooling_p, patch_pooling_n
+
+                    global_pooling = pooling_data[1]
+                else:
+                    global_pooling = pooling_data
+
+                # =======================================
+                # 计算Global VLAD特征的损失
+                # =======================================
+                # 对每个Query、Positive、Negative组成的三元对象进行Loss计算，由于每个Query对应的Negative数量不同，所以需要这样计算
+                global_loss = 0
+
+                # 把Pooling的数据分为Query、正例和负例
+                global_pooling_q, global_pooling_p, global_pooling_n = torch.split(global_pooling, [B, B, neg_size])
+
+                for i, neg_count in enumerate(neg_counts):
+                    for n in range(neg_count):
+                        neg_ix = (torch.sum(neg_counts[:i]) + n).item()
+                        global_loss += criterion(global_pooling_q[i: i + 1],
+                                                 global_pooling_p[i: i + 1],
+                                                 global_pooling_n[neg_ix:neg_ix + 1])
+
+                # 对损失求平均
+                global_loss = (global_loss /  neg_size)
+
+                if config['train']['pooling'].lower() == 'patchnetvlad':
+                    total_loss = global_loss + patch_loss
+                else:
+                    total_loss = global_loss
+
+            scaler.scale(total_loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             optimizer.zero_grad()
 
-            patch_loss = 0
-            if config['train']['pooling'].lower() == 'patchnetvlad':
-                # =======================================
-                # 计算Patch VLAD特征的损失
-                # =======================================
-                patch_poolings = pooling_data[0]
-                # 读取每个Patch Pooling
-                for i in range(len(patch_poolings)):
-                    patch_pooling = patch_poolings[i]
-                    patch_pooling_q, patch_pooling_p, patch_pooling_n = torch.split(patch_pooling, [B, B, neg_size])
-                    loss_i = 0
-                    for i, neg_count in enumerate(neg_counts):
-                        for n in range(neg_count):
-                            neg_ix = (torch.sum(neg_counts[:i]) + n).item()
-                            loss = criterion(patch_pooling_q[i: i + 1],
-                                             patch_pooling_p[i: i + 1],
-                                             patch_pooling_n[neg_ix:neg_ix + 1])
-                            loss_i += loss
-                    # 计算每个Patch的平均Loss
-                    patch_loss += (loss_i / neg_size)
-
-                # 计算所有Patch Size的平均Loss
-                patch_loss = (patch_loss / len(patch_poolings))
-
-                # 清空内存
-                del patch_pooling_q, patch_pooling_p, patch_pooling_n
-
-                global_pooling = pooling_data[1]
-            else:
-                global_pooling = pooling_data
-
-            # =======================================
-            # 计算Global VLAD特征的损失
-            # =======================================
-            # 对每个Query、Positive、Negative组成的三元对象进行Loss计算，由于每个Query对应的Negative数量不同，所以需要这样计算
-            global_loss = 0
-
-            # 把Pooling的数据分为Query、正例和负例
-            global_pooling_q, global_pooling_p, global_pooling_n = torch.split(global_pooling, [B, B, neg_size])
-
-            for i, neg_count in enumerate(neg_counts):
-                for n in range(neg_count):
-                    neg_ix = (torch.sum(neg_counts[:i]) + n).item()
-                    global_loss += criterion(global_pooling_q[i: i + 1],
-                                             global_pooling_p[i: i + 1],
-                                             global_pooling_n[neg_ix:neg_ix + 1])
-
-            # 对损失求平均
-            global_loss = (global_loss /  neg_size)
-
-            if config['train']['pooling'].lower() == 'patchnetvlad':
-                total_loss = global_loss + patch_loss
-            else:
-                total_loss = global_loss
-
-            total_loss.backward()
-            optimizer.step()
+            # total_loss.backward()
+            # optimizer.step()
+            # optimizer.zero_grad()
 
             # 收集所有GPU上的Loss，并求平均
             total_loss = reduce_mean(total_loss, world_size)
@@ -197,7 +195,6 @@ def train_epoch(rank, world_size, train_dataset: MSLS, model: DistributedDataPar
 
         start_iter += len(training_data_loader)
         del training_data_loader, total_loss
-        optimizer.zero_grad()
         # 回头GPU内存
         torch.cuda.empty_cache()
 
