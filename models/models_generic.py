@@ -4,7 +4,7 @@ import numpy as np
 import h5py
 import torch.nn.functional as F
 
-from torchvision.models import vgg16
+from torchvision.models import vgg16, mobilenet_v3_large, mobilenet_v3_small
 from math import ceil
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from dataset.mapillary_sls.MSLS import ImagesFromList, MSLS
@@ -15,6 +15,8 @@ from tqdm import tqdm
 from sklearn.cluster import KMeans
 from models.PatchNetVLAD import PatchNetVLAD
 from models.NetVLAD import NetVLAD
+from models.GLAttentionNet import GLAttentionNet
+from models.AttentionPool import AttentionPool
 
 
 class Flatten(nn.Module):
@@ -56,21 +58,25 @@ def get_backbone(config):
 
         # 重新构建BackBone模型
         encoding_model = nn.Sequential(*layers)
-    elif config['model'].get('backbone') == 'mobilenet':
-        # todo 还没改
-        # 模型的输出维度
-        encoding_dim = 512
-        # 图像编码模型为VGG-16，并且采用ImageNet的预训练参数
-        encoding_model = vgg16(pretrained=True)
+    elif config['model'].get('backbone') == 'mobilenets':
+        encoding_dim = 96
+        encoding_model = mobilenet_v3_small(pretrained=True)
 
-        # 获取所有的网络层
-        layers = list(encoding_model.features.children())[:-2]
-        # 只训练conv5_1, conv5_2, and conv5_3的参数，冻结前面所有曾的参数
-        for layer in layers[:-5]:
+        layers = list(encoding_model.features.children())[:-1]
+        for layer in layers[:-2]:
             for p in layer.parameters():
                 p.requires_grad = False
 
-        # 重新构建BackBone模型
+        encoding_model = nn.Sequential(*layers)
+    elif config['model'].get('backbone') == 'mobilenetl':
+        encoding_dim = 160
+        encoding_model = mobilenet_v3_large(pretrained=True)
+
+        layers = list(encoding_model.features.children())[:-2]
+        for layer in layers[:-2]:
+            for p in layer.parameters():
+                p.requires_grad = False
+
         encoding_model = nn.Sequential(*layers)
     else:
         raise ValueError('未知的BackBone类型: {}'.format(config['model'].get('backbone')))
@@ -78,7 +84,7 @@ def get_backbone(config):
     return encoding_model, encoding_dim
 
 
-def get_model(encoding_model, encoding_dim, config, append_pca_layer=False):
+def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> GLAttentionNet:
     """
     获取训练模型
 
@@ -88,30 +94,31 @@ def get_model(encoding_model, encoding_dim, config, append_pca_layer=False):
     :param append_pca_layer: 是否添加PCA层
     :return:
     """
-    nn_model = nn.Module()
-    nn_model.add_module('encoder', encoding_model)
+    pooling_model = nn.Module()
+    pca_model = nn.Module()
 
     # 数据集名称
     dataset_name = config['dataset'].get('name')
 
     if config['train'].get('pooling').lower() == 'patchnetvlad':
-        net_vlad = PatchNetVLAD(num_clusters=config[dataset_name].getint('num_clusters'),
-                                encoding_dim=encoding_dim,
-                                patch_sizes=config['train'].get('patch_sizes'),
-                                strides=config['train'].get('strides'),
-                                vlad_v2=config['train'].getboolean('vlad_v2'))
-        nn_model.add_module('pool', net_vlad)
+        pooling_model = PatchNetVLAD(num_clusters=config[dataset_name].getint('num_clusters'),
+                                     encoding_dim=encoding_dim,
+                                     patch_sizes=config['train'].get('patch_sizes'),
+                                    strides=config['train'].get('strides'),
+                                    vlad_v2=config['train'].getboolean('vlad_v2'))
     elif config['train'].get('pooling').lower() == 'netvlad':
-        net_vlad = NetVLAD(num_clusters=config[dataset_name].getint('num_clusters'),
-                           encoding_dim=encoding_dim,
-                           vlad_v2=config['train'].getboolean('vlad_v2'))
-        nn_model.add_module('pool', net_vlad)
+        pooling_model = NetVLAD(num_clusters=config[dataset_name].getint('num_clusters'),
+                                encoding_dim=encoding_dim,
+                                vlad_v2=config['train'].getboolean('vlad_v2'))
+    elif config['train'].get('pooling').lower() == 'attentionpool':
+        pooling_model = AttentionPool(in_channels=encoding_dim, ex_channels= 6 * encoding_dim,
+                                      out_channels=encoding_dim)
     elif config['train'].get['pooling'].lower() == 'max':
         global_pool = nn.AdaptiveMaxPool2d((1, 1))
-        nn_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))
+        pooling_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))
     elif config['train'].get['pooling'].pooling.lower() == 'avg':
         global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        nn_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))
+        pooling_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))
     else:
         raise ValueError('未知的Pooling类型: {}'.format(config['train'].get('pooling')))
 
@@ -124,9 +131,9 @@ def get_model(encoding_model, encoding_dim, config, append_pca_layer=False):
             encoding_dim *= config[dataset_name].getint('num_clusters')
 
         pca_conv = nn.Conv2d(encoding_dim, num_pcas, kernel_size=(1, 1), stride=(1, 1), padding=0)
-        nn_model.add_module('WPCA', nn.Sequential(*[pca_conv, Flatten(), L2Norm(dim=-1)]))
+        pca_model.add_module('WPCA', nn.Sequential(*[pca_conv, Flatten(), L2Norm(dim=-1)]))
 
-    return nn_model
+    return GLAttentionNet(encoding_model, pooling_model, pca_model)
 
 
 def create_image_clusters(cluster_set, model, encoding_dim, device, config, save_file):
