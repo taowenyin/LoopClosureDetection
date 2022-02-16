@@ -53,8 +53,6 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
     encoding_model, encoding_dim = get_backbone(config)
     model = get_model(encoding_model, encoding_dim, config, append_pca_layer=config['train'].getboolean('wpca'))
 
-    print(model)
-
     # 保存的图像特征
     init_cache_file = join(join(ROOT_DIR, 'desired', 'centroids'),
                            config['model'].get('backbone') + '_' +
@@ -94,8 +92,7 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
         image_descriptors = h5.get('descriptors')[:]
 
         # 初始化模型参数
-        # todo 没加pooling
-        # model.pool.init_params(image_clusters, image_descriptors)
+        model.pool.init_params(image_clusters, image_descriptors)
 
         del image_clusters, image_descriptors
         # 回头GPU内存
@@ -119,6 +116,9 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
     else:
         writer = None
 
+    # 其他GPU等待GPU0完成Log文件夹的创建
+    dist.barrier()
+
     # 把模型改成并行模型
     model = DDP(model.to(rank), device_ids=[rank])
 
@@ -127,8 +127,6 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
     for epoch in train_epoch_bar:
         if rank == 0:
             train_epoch_bar.set_description(f'GPU:{rank},第{epoch}/{opt.epochs_count - opt.start_epoch}次训练周期')
-
-        sleep(1)
 
         # 执行一个训练周期
         train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,

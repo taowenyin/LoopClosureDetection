@@ -159,7 +159,7 @@ def train_epoch(rank, world_size, train_dataset: MSLS, model: DistributedDataPar
                                                  global_pooling_n[neg_ix:neg_ix + 1])
 
                 # 对损失求平均
-                global_loss = (global_loss /  neg_size)
+                global_loss = (global_loss / neg_size)
 
                 if config['train']['pooling'].lower() == 'patchnetvlad':
                     total_loss = global_loss + patch_loss

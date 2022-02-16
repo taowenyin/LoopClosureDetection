@@ -112,7 +112,8 @@ def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> G
                                 vlad_v2=config['train'].getboolean('vlad_v2'))
     elif config['train'].get('pooling').lower() == 'attentionpool':
         pooling_model = AttentionPool(in_channels=encoding_dim, ex_channels= 6 * encoding_dim,
-                                      out_channels=encoding_dim)
+                                      num_clusters=config[dataset_name].getint('num_clusters'),
+                                      vlad_v2=config['train'].getboolean('vlad_v2'))
     elif config['train'].get['pooling'].lower() == 'max':
         global_pool = nn.AdaptiveMaxPool2d((1, 1))
         pooling_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))

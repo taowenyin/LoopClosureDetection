@@ -27,6 +27,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs_count', default=30, type=int, help='模型训练的周期数')
     parser.add_argument('--save_every_epoch', action='store_true', help='是否开启每个EPOCH都进行checkpoint保存')
     parser.add_argument('--amp', action='store_true', help='是否开启混合精度训练')
+    parser.add_argument('--service', action='store_true', help='是否在服务器上训练')
 
     opt = parser.parse_args()
 
@@ -55,13 +56,15 @@ if __name__ == '__main__':
     dataset_name = config['dataset'].get('name')
 
     print('===> 载入训练和验证数据集')
-    train_dataset = MSLS(opt.dataset_root_dir, mode='train', device=device, config=config, cities_list='trondheim',
+    train_dataset = MSLS(opt.dataset_root_dir, mode='train', device=device, config=config,
+                         cities_list=None if opt.service is True else 'trondheim',
                          img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
                          negative_size=config['train'].getint('negative_size'),
                          batch_size=config['train'].getint('cache_batch_size'),
                          exclude_panos=config['train'].getboolean('exclude_panos'))
 
-    validation_dataset = MSLS(opt.dataset_root_dir, mode='val', device=device, config=config, cities_list='cph',
+    validation_dataset = MSLS(opt.dataset_root_dir, mode='val', device=device, config=config,
+                              cities_list=None if opt.service is True else 'cph',
                               img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
                               positive_distance_threshold=config['train'].getint('positive_distance_threshold'),
                               batch_size=config['train'].getint('cache_batch_size'),
