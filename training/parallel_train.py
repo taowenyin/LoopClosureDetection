@@ -16,6 +16,7 @@ from models.models_generic import get_backbone, get_model, create_image_clusters
 from tools import ROOT_DIR
 from shutil import copyfile
 from dataset.mapillary_sls.MSLS import MSLS
+from training.val import validation
 
 
 def run_parallel(parallel_fn, world_size, config, opt, train_dataset, validation_dataset):
@@ -131,6 +132,14 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
         # 执行一个训练周期
         train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,
                     epoch, config, opt, writer)
+
+        # 每训练eval_every次，进行一次验证
+        if(epoch % config['train'].getint('eval_every')) == 0:
+            if rank == 0:
+                print('xx')
+
+        # 等待GPU0测试完成
+        dist.barrier()
 
     # 训练完成后在GPU:0上关闭
     if rank == 0:
