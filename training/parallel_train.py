@@ -17,6 +17,7 @@ from tools import ROOT_DIR
 from shutil import copyfile
 from dataset.mapillary_sls.MSLS import MSLS
 from training.val import validation
+from tools.common import save_checkpoint
 
 
 def run_parallel(parallel_fn, world_size, config, opt, train_dataset, validation_dataset):
@@ -123,6 +124,11 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
     # 把模型改成并行模型
     model = DDP(model.to(rank), device_ids=[rank])
 
+    # 保存训练结果没有改善的次数
+    not_improved = 0
+    # 最好结果的分数
+    best_score = 0
+
     # 开始训练，从opt.start_epoch + 1次开始，到opt.epochs_count次结束
     train_epoch_bar = trange(opt.start_epoch + 1, opt.epochs_count + 1)
     for epoch in train_epoch_bar:
@@ -130,19 +136,46 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
             train_epoch_bar.set_description(f'GPU:{rank},第{epoch}/{opt.epochs_count - opt.start_epoch}次训练周期')
 
         # 执行一个训练周期
-        train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,
-                    epoch, config, opt, writer)
+        # train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,
+        #             epoch, config, opt, writer)
 
         # 每训练eval_every次，进行一次验证
         if(epoch % config['train'].getint('eval_every')) == 0:
             if rank == 0:
-                print('xx')
+                recalls = validation(rank, world_size, validation_dataset, model,
+                                     encoding_dim, config, writer, epoch)
+
+                # 如果在验证集上结果大于保存的结果，那么就把not_improved清零，并且保存当前最好结果，否not_improved加1
+                is_best = recalls[5] > best_score
+                if is_best:
+                    not_improved = 0
+                    best_score = recalls[5]
+                else:
+                    not_improved += 1
+
+                # 保存模型参数
+                save_checkpoint({
+                    'epoch': epoch,
+                    'state_dict': model.state_dict(),
+                    'recalls': recalls,
+                    'best_score': best_score,
+                    'not_improved': not_improved,
+                    'optimizer': optimizer.state_dict(),
+                }, opt, is_best)
+
+                # 假如patience大于0，且not_improved大于分配到每个验证周期的patience次数，那么就认为模型已经无法再改进了
+                if config['train'].getint('patience') > 0 and \
+                        not_improved > (config['train'].getint('patience') / config['train'].getint('eval_every')):
+                    print('经过{}个训练周期，模型的性能已经不能再改进，停止训练...'.format(config['train'].getint('patience')))
+                    break
 
         # 等待GPU0测试完成
         dist.barrier()
 
     # 训练完成后在GPU:0上关闭
     if rank == 0:
+        # 显示最好的结果
+        print('===> 最好的结果 Recalls@5: {:.4f}'.format(best_score), flush=True)
         writer.close()
 
     parallel_cleanup()

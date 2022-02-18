@@ -71,5 +71,9 @@ class AttentionPool(nn.Module):
 
     def forward(self, x):
         out = self.__block(x)
+        B, C, H, W = out.size()
+
+        out = out.view(B, C, -1)
+        out = out.sum(-1)
 
         return out

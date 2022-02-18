@@ -64,7 +64,6 @@ if __name__ == '__main__':
                          exclude_panos=config['train'].getboolean('exclude_panos'))
 
     validation_dataset = MSLS(opt.dataset_root_dir, mode='val', device=device, config=config,
-                              cities_list=None if opt.service is True else 'cph',
                               img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
                               positive_distance_threshold=config['train'].getint('positive_distance_threshold'),
                               batch_size=config['train'].getint('cache_batch_size'),
