@@ -58,3 +58,13 @@ class CoordAttention(nn.Module):
         out = identity * a_w * a_h
 
         return out
+
+
+if __name__ == '__main__':
+    inp = torch.rand([14, 512, 60, 80])
+    inp_dim, oup_dim = 512, 512
+    reduction = 32
+
+    coord_attention = CoordAttention(inp_dim, oup_dim, reduction=reduction)
+    output = coord_attention(inp)
+    print(output.shape)

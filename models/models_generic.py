@@ -17,6 +17,7 @@ from models.PatchNetVLAD import PatchNetVLAD
 from models.NetVLAD import NetVLAD
 from models.GLAttentionNet import GLAttentionNet
 from models.AttentionPool import AttentionPool
+from models.ConvMixer import ConvMixer
 
 
 class Flatten(nn.Module):
@@ -78,6 +79,9 @@ def get_backbone(config):
                 p.requires_grad = False
 
         encoding_model = nn.Sequential(*layers)
+    elif config['model'].get('backbone') == 'convmixer':
+        encoding_dim = 512
+        encoding_model = ConvMixer(512, depth=1, kernel_size=9, patch_size=8)
     else:
         raise ValueError('未知的BackBone类型: {}'.format(config['model'].get('backbone')))
 
@@ -111,9 +115,7 @@ def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> G
                                 encoding_dim=encoding_dim,
                                 vlad_v2=config['train'].getboolean('vlad_v2'))
     elif config['train'].get('pooling').lower() == 'attentionpool':
-        pooling_model = AttentionPool(in_channels=encoding_dim, ex_channels= 6 * encoding_dim,
-                                      num_clusters=config[dataset_name].getint('num_clusters'),
-                                      vlad_v2=config['train'].getboolean('vlad_v2'))
+        pooling_model = AttentionPool(in_channels=encoding_dim)
     elif config['train'].get['pooling'].lower() == 'max':
         global_pool = nn.AdaptiveMaxPool2d((1, 1))
         pooling_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))

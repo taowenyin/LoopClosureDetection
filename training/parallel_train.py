@@ -61,44 +61,45 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
                            dataset_name + '_' +
                            str(config[dataset_name].getint('num_clusters')) + '_desc_cen.hdf5')
 
-    if opt.cluster_file:
-        opt.cluster_file = join(join(ROOT_DIR, 'desired', 'centroids'), opt.cluster_file)
+    if config['model'].get('backbone').lower() != 'convmixer':
+        if opt.cluster_file:
+            opt.cluster_file = join(join(ROOT_DIR, 'desired', 'centroids'), opt.cluster_file)
 
-        if isfile(opt.cluster_file):
-            if (opt.cluster_file != init_cache_file) and (rank == 0):
-                copyfile(opt.cluster_file, init_cache_file)
+            if isfile(opt.cluster_file):
+                if (opt.cluster_file != init_cache_file) and (rank == 0):
+                    copyfile(opt.cluster_file, init_cache_file)
+            else:
+                raise FileNotFoundError("=> 在'{}'中没有找到聚类数据".format(opt.cluster_file))
         else:
-            raise FileNotFoundError("=> 在'{}'中没有找到聚类数据".format(opt.cluster_file))
-    else:
-        if rank == 0:
-            print(f'GPU:{rank} ===> 寻找聚类中心点并载入聚类数据集')
-            train_dataset = MSLS(opt.dataset_root_dir, device=rank, config=config, mode='test', cities_list='train',
-                                 img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
-                                 batch_size=config['train'].getint('cache_batch_size'))
-            print(f'GPU:{rank} ===> 聚类数据集中的数据数量为: {len(train_dataset.db_images_key)}')
+            if rank == 0:
+                print(f'GPU:{rank} ===> 寻找聚类中心点并载入聚类数据集')
+                train_dataset = MSLS(opt.dataset_root_dir, device=rank, config=config, mode='test', cities_list='train',
+                                     img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
+                                     batch_size=config['train'].getint('cache_batch_size'))
+                print(f'GPU:{rank} ===> 聚类数据集中的数据数量为: {len(train_dataset.db_images_key)}')
 
-            print(f'GPU:{rank} ===> 计算图像特征并创建聚类文件')
-            model = model.to(rank)
-            create_image_clusters(train_dataset, model, encoding_dim, rank, config, init_cache_file)
-            # 把模型转为CPU模式，用于载入参数
-            model = model.to(device='cpu')
+                print(f'GPU:{rank} ===> 计算图像特征并创建聚类文件')
+                model = model.to(rank)
+                create_image_clusters(train_dataset, model, encoding_dim, rank, config, init_cache_file)
+                # 把模型转为CPU模式，用于载入参数
+                model = model.to(device='cpu')
 
-        # 其他GPU等待GPU0完成聚类的创建
-        dist.barrier()
+            # 其他GPU等待GPU0完成聚类的创建
+            dist.barrier()
 
-    # 打开保存的聚类文件
-    with h5py.File(init_cache_file, mode='r') as h5:
-        # 获取图像聚类信息
-        image_clusters = h5.get('centroids')[:]
-        # 获取图像特征信息
-        image_descriptors = h5.get('descriptors')[:]
+        # 打开保存的聚类文件
+        with h5py.File(init_cache_file, mode='r') as h5:
+            # 获取图像聚类信息
+            image_clusters = h5.get('centroids')[:]
+            # 获取图像特征信息
+            image_descriptors = h5.get('descriptors')[:]
 
-        # 初始化模型参数
-        model.pool.init_params(image_clusters, image_descriptors)
+            # 初始化模型参数
+            model.pool.init_params(image_clusters, image_descriptors)
 
-        del image_clusters, image_descriptors
-        # 回头GPU内存
-        torch.cuda.empty_cache()
+            del image_clusters, image_descriptors
+            # 回头GPU内存
+            torch.cuda.empty_cache()
 
     print(f'GPU:{rank}开始运行...')
 
@@ -136,8 +137,8 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
             train_epoch_bar.set_description(f'GPU:{rank},第{epoch}/{opt.epochs_count - opt.start_epoch}次训练周期')
 
         # 执行一个训练周期
-        # train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,
-        #             epoch, config, opt, writer)
+        train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,
+                    epoch, config, opt, writer)
 
         # 每训练eval_every次，进行一次验证
         if(epoch % config['train'].getint('eval_every')) == 0:
