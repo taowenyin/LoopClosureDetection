@@ -44,9 +44,11 @@ def get_backbone(config):
     encoding_dim: BackBone的模型输出维度
     """
 
-    if config['model'].get('backbone') == 'vgg16':
-        # 模型的输出维度
-        encoding_dim = 512
+    backbone = config['model'].get('backbone').lower()
+    # 模型的输出维度
+    encoding_dim = config[backbone].getint('encoding_dim')
+
+    if backbone == 'vgg16':
         # 图像编码模型为VGG-16，并且采用ImageNet的预训练参数
         encoding_model = vgg16(pretrained=True)
 
@@ -59,8 +61,7 @@ def get_backbone(config):
 
         # 重新构建BackBone模型
         encoding_model = nn.Sequential(*layers)
-    elif config['model'].get('backbone') == 'mobilenets':
-        encoding_dim = 96
+    elif backbone == 'mobilenets':
         encoding_model = mobilenet_v3_small(pretrained=True)
 
         layers = list(encoding_model.features.children())[:-1]
@@ -69,8 +70,7 @@ def get_backbone(config):
                 p.requires_grad = False
 
         encoding_model = nn.Sequential(*layers)
-    elif config['model'].get('backbone') == 'mobilenetl':
-        encoding_dim = 160
+    elif backbone == 'mobilenetl':
         encoding_model = mobilenet_v3_large(pretrained=True)
 
         layers = list(encoding_model.features.children())[:-2]
@@ -79,9 +79,11 @@ def get_backbone(config):
                 p.requires_grad = False
 
         encoding_model = nn.Sequential(*layers)
-    elif config['model'].get('backbone') == 'convmixer':
-        encoding_dim = 512
-        encoding_model = ConvMixer(512, depth=1, kernel_size=9, patch_size=8)
+    elif backbone == 'convmixer':
+        encoding_model = ConvMixer(dim=config[backbone].getint('encoding_dim'),
+                                   depth=config[backbone].getint('depth'),
+                                   kernel_size=config[backbone].getint('kernel_size'),
+                                   patch_size=config[backbone].getint('patch_size'))
     else:
         raise ValueError('未知的BackBone类型: {}'.format(config['model'].get('backbone')))
 
