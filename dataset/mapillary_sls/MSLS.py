@@ -88,8 +88,12 @@ class MSLS(Dataset):
 
         # 筛选后的Query图像
         self.__q_images_key = []
+        # 保存每个子数据集的Query数量
+        self.__q_images_size_list = []
         # 筛选后的Database图像
         self.__db_images_key = []
+        # 保存每个子数据集的Database数量
+        self.__db_images_size_list = []
         # Query的序列索引
         self.__q_seq_idx = []
         # positive的序列索引
@@ -208,7 +212,9 @@ class MSLS(Dataset):
 
                 # 保存筛选后的图像
                 self.__q_images_key.extend(q_seq_keys)
+                self.__q_images_size_list.append(len(q_seq_keys))
                 self.__db_images_key.extend(db_seq_keys)
+                self.__db_images_size_list.append(len(db_seq_keys))
 
                 # 从原数据中筛选后数据
                 q_data = q_data.loc[unique_q_seq_idxs]
@@ -525,6 +531,10 @@ class MSLS(Dataset):
         return self.__db_images_key
 
     @property
+    def db_images_list(self):
+        return self.__db_images_size_list
+
+    @property
     def q_seq_idx(self):
         return self.__q_seq_idx
 
@@ -535,6 +545,10 @@ class MSLS(Dataset):
     @property
     def q_images_key(self):
         return self.__q_images_key
+
+    @property
+    def q_images_size_list(self):
+        return self.__q_images_size_list
 
     @property
     def img_transform(self):

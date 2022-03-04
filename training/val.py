@@ -101,27 +101,24 @@ def validation(rank, world_size, eval_set: MSLS, model: DDP, encoder_dim: int,
     # 得到所有正例
     gt = eval_set.all_positive_indices
 
-    if is_faiss:
+    # 保存预测的结果
+    predictions = None
+    # 开始索引
+    start_db_index = start_q_index = 0
+    for i, (db_size, q_size) in enumerate(zip(eval_set.db_images_list, eval_set.q_images_size_list)):
         faiss_index = faiss.IndexFlatL2(pooling_dim)
-        faiss_index.add(db_feature.cpu().numpy())
-
-        # hard-coded for CPH and SF. This fixes the val recall issue.
-        cph_faiss_index = faiss.IndexFlatL2(pooling_dim)
-        cph_faiss_index.add(db_feature.cpu().numpy()[:12556, :])
-        _, cph_predictions = cph_faiss_index.search(q_feature.cpu().numpy()[:499, :], max(n_values))
-
-        sf_faiss_index = faiss.IndexFlatL2(pooling_dim)
-        sf_faiss_index.add(db_feature.cpu().numpy()[12556:, :])
-        _, sf_predictions = sf_faiss_index.search(q_feature.cpu().numpy()[499:, :], max(n_values))
-
-        predictions = np.vstack((cph_predictions, sf_predictions))
-    else:
-        # 对Database进行拟合
-        knn = NearestNeighbors(n_jobs=-1)
-        knn.fit(db_feature.cpu().numpy())
-        # 计算最近邻
-        predictions = np.square(knn.kneighbors(q_feature.cpu().numpy(), max(n_values))[1])
-
+        faiss_index.add(db_feature.cpu().numpy()[start_db_index:start_db_index + db_size, :])
+        distances, predictions_indexs = faiss_index.search(q_feature.cpu().numpy()[
+                                                           start_q_index:start_q_index + q_size, :],
+                                                           max(n_values))
+        # 保存预测结果
+        if i == 0:
+            predictions = predictions_indexs
+        else:
+            predictions = np.vstack((predictions, predictions_indexs))
+        # 更新开始索引
+        start_db_index += db_size
+        start_q_index += q_size
 
     # 保存不同N的正确率
     correct_at_n = np.zeros(len(n_values))
@@ -143,3 +140,7 @@ def validation(rank, world_size, eval_set: MSLS, model: DDP, encoder_dim: int,
         writer.add_scalar('验证集的召回率@{}'.format(str(n)), recall_at_n[i], epoch_num)
 
     return all_recalls
+
+
+if __name__ == '__main__':
+    print('')
