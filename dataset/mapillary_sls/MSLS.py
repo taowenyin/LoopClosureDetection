@@ -49,7 +49,7 @@ class ImagesFromList(Dataset):
 
 class MSLS(Dataset):
     def __init__(self, root_dir, device, config, mode='train', cities_list=None, img_resize=(480, 640),
-                 negative_size=5, positive_distance_threshold=10, negative_distance_threshold=25,
+                 margin=0.1, negative_size=5, positive_distance_threshold=10, negative_distance_threshold=25,
                  cached_queries=1000, cached_negatives=1000, batch_size=24, task='im2im', sub_task='all',
                  seq_length=1, exclude_panos=True, positive_sampling=True):
         """
@@ -65,6 +65,7 @@ class MSLS(Dataset):
         :param mode: 数据集的模式[train, val, test]
         :param cities_list: 城市列表
         :param img_resize: 图像大小
+        :param margin: todo
         :param negative_size: 每个正例对应的反例个数
         :param positive_distance_threshold: 正例的距离阈值
         :param negative_distance_threshold: 反例的距离阈值，在该距离之内认为是非反例，之外才属于反例，同时正例要在正例阈值内才算正例，正例阈值和负例阈值之间属于非负例
@@ -784,66 +785,4 @@ class MSLS(Dataset):
 
 
 if __name__ == '__main__':
-    from models.models_generic import get_backbone, get_model
-
-    parser = argparse.ArgumentParser(description='MSLS Database')
-
-    parser.add_argument('--dataset_root_dir', type=str, default='/mnt/Dataset/Mapillary_Street_Level_Sequences',
-                        help='Root directory of dataset')
-    parser.add_argument('--config_path', type=str, default=join(ROOT_DIR, 'configs'), help='模型训练的配置文件的目录。')
-    parser.add_argument('--no_cuda', action='store_true', help='如果使用该参数表示只使用CPU，否则使用GPU。')
-
-    opt = parser.parse_args()
-
-    config_file = join(opt.config_path, 'train.ini')
-    config = configparser.ConfigParser()
-    config.read(config_file)
-
-    dataset_name = config['dataset'].get('name')
-
-    cuda = not opt.no_cuda
-    if cuda and not torch.cuda.is_available():
-        raise Exception("没有找到GPU，运行时添加参数 --no_cuda")
-
-    device = torch.device("cuda" if cuda else "cpu")
-
-    encoding_model, encoding_dim = get_backbone(config)
-    model = get_model(encoding_model, encoding_dim, config,
-                      append_pca_layer=config['train'].getboolean('wpca'))
-
-    init_cache_file = join(join(ROOT_DIR, 'desired', 'centroids'),
-                           config['model'].get('backbone') + '_' +
-                           dataset_name + '_' +
-                           str(config[dataset_name].getint('num_clusters')) + '_desc_cen.hdf5')
-    # 打开保存的聚类文件
-    with h5py.File(init_cache_file, mode='r') as h5:
-        # 获取图像聚类信息
-        image_clusters = h5.get('centroids')[:]
-        # 获取图像特征信息
-        image_descriptors = h5.get('descriptors')[:]
-
-        # 初始化模型参数
-        model.pool.init_params(image_clusters, image_descriptors)
-
-        del image_clusters, image_descriptors
-
-    train_dataset = MSLS(opt.dataset_root_dir,
-                         mode='train',
-                         device=device,
-                         config=config,
-                         cities_list='trondheim',
-                         img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
-                         negative_size=config['train'].getint('negative_size'),
-                         batch_size=config['train'].getint('cache_batch_size'),
-                         exclude_panos=config['train'].getboolean('exclude_panos'))
-
-    train_dataset.new_epoch()
-
-    if config['train']['pooling'].lower() == 'netvlad' or config['train']['pooling'].lower() == 'patchnetvlad':
-        encoding_dim *= config[dataset_name].getint('num_clusters')
-
-    model = model.to(device)
-
-    train_dataset.refresh_data(model, encoding_dim)
-
-    print('xx')
+    print('')

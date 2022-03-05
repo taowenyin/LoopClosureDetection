@@ -45,56 +45,35 @@ def validation(rank, world_size, eval_set: MSLS, model: DDP, encoder_dim: int,
     # 获得数据集名称
     dataset_name = config['dataset'].get('name')
     cache_batch_size = config['train'].getint('cache_batch_size')
-    is_faiss = config['train'].getboolean('is_faiss')
 
     model.eval()
     with torch.no_grad():
         print('====> 提取验证集特征中...')
 
-        if config['train']['pooling'].lower() == 'netvlad' or config['train']['pooling'].lower() == 'patchnetvlad':
+        if config['train'].get('pooling').lower() == 'netvlad':
             pooling_dim = encoder_dim * config[dataset_name].getint('num_clusters')
         else:
             pooling_dim = encoder_dim
 
-        q_feature = torch.zeros(len(eval_set_queries), pooling_dim).to(rank)
-        db_feature = torch.zeros(len(eval_set_dbs), pooling_dim).to(rank)
+        q_feature = torch.zeros(len(eval_set_queries), pooling_dim, device=rank)
+        db_feature = torch.zeros(len(eval_set_dbs), pooling_dim, device=rank)
 
-        # 获取验证集Query的VLAD特征
-        eval_q_data_bar = tqdm(enumerate(eval_data_loader_queries),
-                               leave=True, total=len(eval_set_queries) // cache_batch_size)
-        for i, (data, idx) in eval_q_data_bar:
-            eval_q_data_bar.set_description('[{}/{}]计算验证集Query的特征...'.format(i, eval_q_data_bar.total))
-            image_descriptors = model.module.encoder(data.to(rank))
-            pool_descriptors = model.module.pool(image_descriptors)
-            # 如果是PatchNetVLAD那么只是用Global VLAD
-            if config['train'].get('pooling') == 'patchnetvlad':
-                pool_descriptors = pool_descriptors[1]
-            q_feature[i * cache_batch_size: (i + 1) * cache_batch_size, :] = pool_descriptors
+        for feature, data_loader in zip([q_feature, db_feature], [eval_data_loader_queries, eval_data_loader_dbs]):
+            eval_data_bar = tqdm(data_loader, leave=True, total=len(data_loader.dataset) // cache_batch_size)
+            for i, (data, idx) in enumerate(eval_data_bar, start=1):
+                eval_data_bar.set_description('[{}/{}]计算验证集Query的特征...'.format(i, eval_data_bar.total))
 
-            # 清空GPU存储
-            del data, image_descriptors, pool_descriptors
+                image_descriptors = model.module.encoder(data.to(rank))
+                pool_descriptors = model.module.pool(image_descriptors)
 
-        # 获取验证集Database的VLAD特征
-        eval_db_data_bar = tqdm(enumerate(eval_data_loader_dbs),
-                                leave=True, total=len(eval_set_dbs) // cache_batch_size)
-        for i, (data, idx) in eval_db_data_bar:
-            eval_db_data_bar.set_description('[{}/{}]计算验证集Database的特征...'.format(i, eval_db_data_bar.total))
-            image_descriptors = model.module.encoder(data.to(rank))
-            vlad_descriptors = model.module.pool(image_descriptors)
-            # 如果是PatchNetVLAD那么只是用Global VLAD
-            if config['train'].get('pooling') == 'patchnetvlad':
-                vlad_descriptors = vlad_descriptors[1]
-            db_feature[i * cache_batch_size: (i + 1) * cache_batch_size, :] = vlad_descriptors
+                # 保存图片，并且一定要按idx索引的顺序放，不是按照i索引的顺序放
+                feature[idx, :] = pool_descriptors
 
-            # 清空GPU存储
-            del data, image_descriptors, vlad_descriptors
+                del data, image_descriptors, pool_descriptors
 
-        del eval_data_loader_queries, eval_data_loader_dbs
-        # 回收GPU内存
-        torch.cuda.empty_cache()
+    del eval_data_loader_queries, eval_data_loader_dbs
 
     print('===> 构建验证集的最近邻')
-
     print('====> 计算召回率 @ N')
     n_values = [1, 5, 10, 20, 50, 100]
 
@@ -105,14 +84,14 @@ def validation(rank, world_size, eval_set: MSLS, model: DDP, encoder_dim: int,
     predictions = None
     # 开始索引
     start_db_index = start_q_index = 0
-    for i, (db_size, q_size) in enumerate(zip(eval_set.db_images_list, eval_set.q_images_size_list)):
+    for cities_size, (db_size, q_size) in enumerate(zip(eval_set.db_images_list, eval_set.q_images_size_list)):
         faiss_index = faiss.IndexFlatL2(pooling_dim)
         faiss_index.add(db_feature.cpu().numpy()[start_db_index:start_db_index + db_size, :])
         distances, predictions_indexs = faiss_index.search(q_feature.cpu().numpy()[
                                                            start_q_index:start_q_index + q_size, :],
                                                            max(n_values))
         # 保存预测结果
-        if i == 0:
+        if cities_size == 0:
             predictions = predictions_indexs
         else:
             predictions = np.vstack((predictions, predictions_indexs))
@@ -128,7 +107,6 @@ def validation(rank, world_size, eval_set: MSLS, model: DDP, encoder_dim: int,
             if np.any(np.in1d(pred[:n], gt[q_idx])):
                 correct_at_n[i:] += 1
                 break
-
     # 计算召回率
     recall_at_n = correct_at_n / len(eval_set.q_seq_idx)
 
@@ -141,6 +119,3 @@ def validation(rank, world_size, eval_set: MSLS, model: DDP, encoder_dim: int,
 
     return all_recalls
 
-
-if __name__ == '__main__':
-    print('')

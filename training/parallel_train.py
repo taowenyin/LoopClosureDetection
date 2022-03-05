@@ -53,6 +53,9 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
 
     print(f'GPU:{rank} ===> 构建网络模型')
     encoding_model, encoding_dim = get_backbone(config)
+
+    a = config['train'].getboolean('wpca')
+
     model = get_model(encoding_model, encoding_dim, config, append_pca_layer=config['train'].getboolean('wpca'))
 
     # 保存的图像特征
@@ -98,8 +101,6 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
             model.pool.init_params(image_clusters, image_descriptors)
 
             del image_clusters, image_descriptors
-            # 回头GPU内存
-            torch.cuda.empty_cache()
 
     print(f'GPU:{rank}开始运行...')
 
@@ -107,17 +108,25 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
     criterion = nn.TripletMarginLoss(margin=config['train'].getfloat('margin') ** 0.5,
                                      p=2, reduction='sum')
 
+    scheduler = None
     if config['train'].get('optim') == 'ADAM':
         optimizer = optim.Adam(filter(lambda par: par.requires_grad, model.parameters()),
                                lr=config['train'].getfloat('lr'))
+    elif config['train'].get('optim') == 'SGD':
+        optimizer = optim.SGD(filter(lambda par: par.requires_grad,
+                                     model.parameters()), lr=config['train'].getfloat('lr'),
+                              momentum=config['train'].getfloat('momentum'),
+                              weight_decay=config['train'].getfloat('weight_decay'))
+
+        scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=config['train'].getint('lr_step'),
+                                              gamma=config['train'].getfloat('lr_gamma'))
     else:
         raise ValueError('未知的优化器: ' + config['train'].get('optim'))
 
+    writer = None
     if rank == 0:
         # 创建TensorBoard的写入对象
         writer = SummaryWriter(log_dir=join(opt.result_dir, 'logs'))
-    else:
-        writer = None
 
     # 其他GPU等待GPU0完成Log文件夹的创建
     dist.barrier()
@@ -139,6 +148,9 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
         # 执行一个训练周期
         train_epoch(rank, world_size, train_dataset, model, optimizer, criterion, encoding_dim,
                     epoch, config, opt, writer)
+        # 更新优化器
+        if scheduler is not None:
+            scheduler.step(epoch)
 
         # 每训练eval_every次，进行一次验证
         if(epoch % config['train'].getint('eval_every')) == 0:
@@ -179,4 +191,5 @@ def main_parallel_train(rank, world_size, config, opt, train_dataset, validation
         print('===> 最好的结果 Recalls@5: {:.4f}'.format(best_score), flush=True)
         writer.close()
 
+    dist.barrier()
     parallel_cleanup()

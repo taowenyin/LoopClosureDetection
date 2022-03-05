@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-
-from sklearn.neighbors import NearestNeighbors
+import faiss
 
 
 class NetVLAD(nn.Module):
@@ -53,13 +52,12 @@ class NetVLAD(nn.Module):
                 torch.from_numpy(self.__alpha * clusters_assignment).unsqueeze(2).unsqueeze(3))
             self.__conv.bias = None
         else:
-            knn = NearestNeighbors(n_jobs=-1)
-            knn.fit(descriptors)
+            knn_index = faiss.IndexFlatL2(descriptors.shape[1])
+            knn_index.add(descriptors)
             del descriptors
-
             # 通过KNN算法得到与中心点最近的2个图像的索引
-            distance_square = np.square(knn.kneighbors(clusters, 2)[1])
-            del knn
+            distance_square = np.square(knn_index.search(clusters, 2)[1])
+            del knn_index
 
             self.__alpha = (-1 * np.log(0.01) / np.mean(distance_square[:, 1] - distance_square[:, 0])).item()
             # 使用聚类后的中心点来初始化中心点参数
@@ -120,25 +118,3 @@ class NetVLAD(nn.Module):
         vlad = F.normalize(vlad, p=2, dim=1)
 
         return vlad
-
-
-if __name__ == '__main__':
-    if torch.cuda.is_available():
-        cuda = True
-    else:
-        cuda = False
-    device = torch.device("cuda" if cuda else "cpu")
-
-    data = torch.rand(2, 512, 60, 80).to(device)
-
-    image_clusters = np.random.rand(20, 512).astype(np.float32)
-    image_descriptors = np.random.rand(50000, 512).astype(np.float32)
-
-    model = NetVLAD(20, 512)
-    model.init_params(image_clusters, image_descriptors)
-
-    model = model.to(device)
-
-    output = model(data)
-
-    print('xx')

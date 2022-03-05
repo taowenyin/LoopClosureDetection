@@ -55,16 +55,20 @@ if __name__ == '__main__':
     # 获得数据集名称
     dataset_name = config['dataset'].get('name')
 
+    margin = config['train'].getfloat('margin'),
+
     print('===> 载入训练和验证数据集')
     train_dataset = MSLS(opt.dataset_root_dir, mode='train', device=device, config=config,
                          cities_list=None if opt.service is True else 'trondheim',
                          img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
+                         margin=config['train'].getfloat('margin'),
                          negative_size=config['train'].getint('negative_size'),
                          batch_size=config['train'].getint('cache_batch_size'),
                          exclude_panos=config['train'].getboolean('exclude_panos'))
 
     validation_dataset = MSLS(opt.dataset_root_dir, mode='val', device=device, config=config,
                               img_resize=tuple(map(int, str.split(config['train'].get('resize'), ','))),
+                              margin=config['train'].getfloat('margin'),
                               positive_distance_threshold=config['train'].getint('positive_distance_threshold'),
                               batch_size=config['train'].getint('cache_batch_size'),
                               exclude_panos=config['train'].getboolean('exclude_panos'))

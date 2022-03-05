@@ -13,11 +13,11 @@ from os import makedirs, remove
 from tools import ROOT_DIR
 from tqdm import tqdm
 from sklearn.cluster import KMeans
-from models.PatchNetVLAD import PatchNetVLAD
-from models.NetVLAD import NetVLAD
-from models.GLAttentionNet import GLAttentionNet
-from models.AttentionPool import AttentionPool
-from models.ConvMixer import ConvMixer
+from models.Pooling.PatchNetVLAD import PatchNetVLAD
+from models.Pooling.NetVLAD import NetVLAD
+from models.LCDNet import LCDNet
+from models.Pooling.AttentionPool import AttentionPool
+from models.Backbone.ConvMixer import ConvMixer
 
 
 class Flatten(nn.Module):
@@ -90,7 +90,7 @@ def get_backbone(config):
     return encoding_model, encoding_dim
 
 
-def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> GLAttentionNet:
+def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> LCDNet:
     """
     获取训练模型
 
@@ -101,7 +101,6 @@ def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> G
     :return:
     """
     pooling_model = nn.Module()
-    pca_model = nn.Module()
 
     # 数据集名称
     dataset_name = config['dataset'].get('name')
@@ -110,35 +109,40 @@ def get_model(encoding_model, encoding_dim, config, append_pca_layer=False) -> G
         pooling_model = PatchNetVLAD(num_clusters=config[dataset_name].getint('num_clusters'),
                                      encoding_dim=encoding_dim,
                                      patch_sizes=config['train'].get('patch_sizes'),
-                                    strides=config['train'].get('strides'),
-                                    vlad_v2=config['train'].getboolean('vlad_v2'))
+                                     strides=config['train'].get('strides'),
+                                     vlad_v2=config['train'].getboolean('vlad_v2'))
     elif config['train'].get('pooling').lower() == 'netvlad':
         pooling_model = NetVLAD(num_clusters=config[dataset_name].getint('num_clusters'),
                                 encoding_dim=encoding_dim,
                                 vlad_v2=config['train'].getboolean('vlad_v2'))
-    elif config['train'].get('pooling').lower() == 'attentionpool':
-        pooling_model = AttentionPool(in_channels=encoding_dim)
-    elif config['train'].get['pooling'].lower() == 'max':
+    elif config['train'].get('pooling').lower() == 'max':
         global_pool = nn.AdaptiveMaxPool2d((1, 1))
         pooling_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))
-    elif config['train'].get['pooling'].pooling.lower() == 'avg':
+    elif config['train'].get('pooling').lower() == 'avg':
         global_pool = nn.AdaptiveAvgPool2d((1, 1))
         pooling_model.add_module('pool', nn.Sequential(*[global_pool, Flatten(), L2Norm()]))
+    elif config['train'].get('pooling').lower() == 'attentionpool':
+        pooling_model = AttentionPool(in_channels=encoding_dim)
     else:
         raise ValueError('未知的Pooling类型: {}'.format(config['train'].get('pooling')))
 
     if append_pca_layer:
+        pca_model = nn.Module()
+
         # PCA后的维度
         num_pcas = config['train'].getint('num_pcas')
+        netvlad_output_dim = encoding_dim
 
         if config['train'].get('pooling').lower() == 'netvlad' or \
                 config['train'].get('pooling').lower() == 'patchnetvlad':
-            encoding_dim *= config[dataset_name].getint('num_clusters')
+            netvlad_output_dim *= config[dataset_name].getint('num_clusters')
 
-        pca_conv = nn.Conv2d(encoding_dim, num_pcas, kernel_size=(1, 1), stride=(1, 1), padding=0)
+        pca_conv = nn.Conv2d(netvlad_output_dim, num_pcas, kernel_size=(1, 1), stride=(1, 1), padding=0)
         pca_model.add_module('WPCA', nn.Sequential(*[pca_conv, Flatten(), L2Norm(dim=-1)]))
+    else:
+        pca_model = None
 
-    return GLAttentionNet(encoding_model, pooling_model, pca_model)
+    return LCDNet(encoding_model, pooling_model, pca_model)
 
 
 def create_image_clusters(cluster_set, model, encoding_dim, device, config, save_file):
